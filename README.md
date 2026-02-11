@@ -239,19 +239,33 @@ geostudio.last-mile.amazon.dev/place* templates.geostudio.last-mile.amazon.dev/*
 ### Step 1: Disable Old Scripts
 
 If you have any old individual GeoStudio scripts, **disable them first**:
+
 Click Tampermonkey icon in Chrome toolbar
+
 Click "Dashboard"
+
 Toggle OFF (disable) each old script:
+
 ❌ Z MX
+
 ❌ Add Middle Button Next to Inputs with observer
+
 ❌ Auto Dismiss Validation Failed Alert
+
 ❌ Auto Drop Down Selection STF
+
 ❌ CaseType Text Observer and Display with Auto-Click
+
 ❌ Click Past Deliveries and Open Attribute Dropdown
+
 ❌ GS 2.0 Remarks for US
+
 ❌ GS 2.0 Remarks
+
 ❌ Left button to paste with observer
+
 ❌ Right buttons to copy
+
 
 
 > ⚠️ **Important:** If old scripts are not disabled, scripts will run TWICE!
