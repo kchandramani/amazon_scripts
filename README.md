@@ -232,7 +232,7 @@ geostudio.last-mile.amazon.dev/place* templates.geostudio.last-mile.amazon.dev/*
 ### Prerequisites
 ✅ Google Chrome browser
 ✅ Tampermonkey extension installed
-(Install from: https://chrome.google.com/webstore/detail/tampermonkey)
+(Install from: https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
 
 
 
