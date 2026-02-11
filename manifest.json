@@ -1,1 +1,33 @@
 
+{
+    "version": "1.0.0",
+    "lastUpdated": "2025-01-15",
+    "announcement": "",
+    "globalSettings": {
+        "killSwitch": false,
+        "debugMode": false
+    },
+    "scripts": [
+        {
+            "name": "Script 1 - Your Script Name",
+            "file": "script1.js",
+            "enabled": true,
+            "priority": 1,
+            "description": "Description of what this script does"
+        },
+        {
+            "name": "Script 2 - Your Script Name",
+            "file": "script2.js",
+            "enabled": true,
+            "priority": 2,
+            "description": "Description of what this script does"
+        },
+        {
+            "name": "Script 3 - Your Script Name",
+            "file": "script3.js",
+            "enabled": true,
+            "priority": 3,
+            "description": "Description of what this script does"
+        }
+    ]
+}
