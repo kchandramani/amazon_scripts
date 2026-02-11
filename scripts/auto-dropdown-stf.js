@@ -1,18 +1,10 @@
-// ==UserScript==
-// @name         Auto Drop Down Selection STF
-// @author       @ckarths @manichk
-// @namespace    http://tampermonkey.net/
-// @version      2.2
-// @description  Auto select options for different scenarios
-// @match        https://eu.templates.geostudio.last-mile.amazon.dev/*
-// @match        https://na.templates.geostudio.last-mile.amazon.dev/*
-// @match        https://fe.templates.geostudio.last-mile.amazon.dev/*
-// ==/UserScript==
+// Auto Drop Down Selection STF
+
 (function() {
     function createButton(label, left, action) {
         var button = document.createElement("button");
         button.innerHTML = label;
-        button.setAttribute('style', `position: absolute; z-index: 2500; padding: 2px; left:${left}%; top: 1%; background-color: #CCCCCC; color: #000000; border: 5px solid #CCCCCC; border-radius: 8px; font-size: 14px; font-family: "Amazon Ember"; font-weight: bold; transition: background-color 0.3s, border-color 0.3s;`);
+        button.setAttribute('style', 'position: absolute; z-index: 2500; padding: 2px; left:' + left + '%; top: 1%; background-color: #CCCCCC; color: #000000; border: 5px solid #CCCCCC; border-radius: 8px; font-size: 14px; font-family: "Amazon Ember"; font-weight: bold; transition: background-color 0.3s, border-color 0.3s;');
 
         button.addEventListener('click', async () => {
             try {
@@ -50,9 +42,9 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-async function selectRadioByValue(containerClass, value) {
-        var container = document.querySelector(`.${containerClass}`);
-        if (!container) throw `Container with class ${containerClass} not found.`;
+    async function selectRadioByValue(containerClass, value) {
+        var container = document.querySelector('.' + containerClass);
+        if (!container) throw 'Container with class ' + containerClass + ' not found.';
 
         var radioButtons = container.querySelectorAll('input[type="radio"]');
         var selectedRadio = Array.from(radioButtons).find(radio => radio.value === value);
@@ -60,12 +52,13 @@ async function selectRadioByValue(containerClass, value) {
         if (selectedRadio) {
             selectedRadio.click();
         } else {
-            throw `Radio button with value "${value}" not found in ${containerClass}.`;
+            throw 'Radio button with value "' + value + '" not found in ' + containerClass + '.';
         }
     }
+
     async function selectOptionById(id, optionIndex) {
         var element = document.getElementById(id);
-        if (!element) throw `Element with ID ${id} not found.`;
+        if (!element) throw 'Element with ID ' + id + ' not found.';
         var event = new Event("mousedown", { bubbles: true });
         element.dispatchEvent(event);
 
@@ -73,13 +66,13 @@ async function selectRadioByValue(containerClass, value) {
 
         var optionsListId = element.getAttribute("aria-controls");
         var optionsList = document.getElementById(optionsListId);
-        if (!optionsList) throw `Options list for element with ID ${id} not found.`;
+        if (!optionsList) throw 'Options list for element with ID ' + id + ' not found.';
 
         var options = optionsList.querySelectorAll('[role="option"]');
         if (options.length > optionIndex) {
             options[optionIndex].click();
         } else {
-            throw `Option at index ${optionIndex} not found for element with ID ${id}.`;
+            throw 'Option at index ' + optionIndex + ' not found for element with ID ' + id + '.';
         }
     }
 
@@ -87,7 +80,7 @@ async function selectRadioByValue(containerClass, value) {
         try {
             await selectOptionById("source", optionIndex);
         } catch (error) {
-            // If the source selection fails, we can log the error or handle it accordingly.
+            // If the source selection fails, log or handle accordingly
         }
     }
 
@@ -97,60 +90,11 @@ async function selectRadioByValue(containerClass, value) {
         await selectOptionById("source", 4);
     }
 
-    async function svRdAction() {
-        await selectRadioByValue("css-gx29mt", "Save");
-        await selectOptionById("granularity", 2);
-        await selectOptionById("source", 4);
-    }
-
-    async function svNdAction() {
-        await selectRadioByValue("css-gx29mt", "Save");
-        await selectOptionById("granularity", 2);
-        await selectOptionById("source", 4);
-    }
-
-    async function svCAction() {
-        await selectRadioByValue("css-gx29mt", "Save");
-        await selectOptionById("granularity", 1);
-        await selectOptionById("source",4 );
-    }
-//sync
-    async function synBuAction() {
-         await selectRadioByValue("css-gx29mt", "Sync");
-        await selectOptionById("granularity", 1);
-        await selectOptionById("source", 4);
-    }
-
-    async function synRdAction() {
-         await selectRadioByValue("css-gx29mt", "Sync");
-        await selectOptionById("granularity", 2);
-        await selectOptionById("source", 4);
-    }
-
-    async function synNdAction() {
-         await selectRadioByValue("css-gx29mt", "Sync");
-        await selectOptionById("granularity", 2);
-        await selectOptionById("source", 4);
-    }
-
-    async function synCAction() {
-       await selectRadioByValue("css-gx29mt", "Sync");
-        await selectOptionById("granularity", 1);
-        await selectOptionById("source", 4);
-    }
-
     async function utlAction() {
         await selectRadioByValue("css-gx29mt", "NA");
         await selectOptionById("granularity", 0);
         await selectSourceOption(0);
     }
-
-    async function nakction() {
-        await selectRadioByValue("css-gx29mt", "NAK_ISSUE");
-        await selectOptionById("granularity", 0);
-        await selectSourceOption(0);
-    }
-
 
     function showError(errorMessage) {
         var errorDiv = document.createElement("div");
@@ -177,15 +121,6 @@ async function selectRadioByValue(containerClass, value) {
         }, 2000);
     }
 
-    // Create buttons at the top of the screen, spaced evenly
     createButton("Sv-ST", -2, svBuAction);
-   // createButton("SvRdSTF", 11, svRdAction);
-    //createButton("SvRdSTF", 23, svNdAction);
-   // createButton("SvBldSTF", 35, svCAction);
-    //createButton("SyBldSTF", 49, synBuAction);
-   // createButton("SyRdSTF", 69, synRdAction);
-    //createButton("NAK", 80, nakction);
-    //createButton("SyBldSTF", 82, synCAction);
     createButton("NA", 90, utlAction);
-
 })();
