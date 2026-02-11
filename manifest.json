@@ -1,4 +1,3 @@
-
 {
     "version": "1.0.0",
     "lastUpdated": "2025-01-15",
@@ -9,25 +8,104 @@
     },
     "scripts": [
         {
-            "name": "Script 1 - Your Script Name",
-            "file": "script1.js",
+            "name": "Z MX - Geofence Setter",
+            "file": "z-mx.js",
             "enabled": true,
             "priority": 1,
-            "description": "Description of what this script does"
+            "description": "Press Z to set Geofence to 50 Meter",
+            "matchPatterns": [
+                "geostudio.last-mile.amazon.dev/place"
+            ]
         },
         {
-            "name": "Script 2 - Your Script Name",
-            "file": "script2.js",
+            "name": "Middle Button Observer",
+            "file": "middle-button-observer.js",
             "enabled": true,
             "priority": 2,
-            "description": "Description of what this script does"
+            "description": "Adds floating middle button to copy DP geocode to RE geocode",
+            "matchPatterns": [
+                "geostudio.last-mile.amazon.dev/place"
+            ]
         },
         {
-            "name": "Script 3 - Your Script Name",
-            "file": "script3.js",
+            "name": "Auto Dismiss Validation Alert",
+            "file": "auto-dismiss-alert.js",
             "enabled": true,
             "priority": 3,
-            "description": "Description of what this script does"
+            "description": "Automatically dismisses Validation Failed alerts",
+            "matchPatterns": [
+                "na.geostudio.last-mile.amazon.dev/place"
+            ]
+        },
+        {
+            "name": "Auto Drop Down Selection STF",
+            "file": "auto-dropdown-stf.js",
+            "enabled": true,
+            "priority": 4,
+            "description": "Auto select options for Save/Sync/NA/NAK scenarios",
+            "matchPatterns": [
+                "templates.geostudio.last-mile.amazon.dev"
+            ]
+        },
+        {
+            "name": "CaseType Observer & Auto-Click",
+            "file": "casetype-observer.js",
+            "enabled": true,
+            "priority": 5,
+            "description": "Observes CaseType changes, displays info, auto-clicks buttons",
+            "matchPatterns": [
+                "na.geostudio.last-mile.amazon.dev/place"
+            ]
+        },
+        {
+            "name": "Past Deliveries & Attribute Dropdown",
+            "file": "past-deliveries-dropdown.js",
+            "enabled": true,
+            "priority": 6,
+            "description": "Press Q to click Past Deliveries and open Attribute dropdown",
+            "matchPatterns": [
+                "geostudio.last-mile.amazon.dev/place"
+            ]
+        },
+        {
+            "name": "GS 2.0 Remarks - US",
+            "file": "remarks-us.js",
+            "enabled": true,
+            "priority": 7,
+            "description": "US specific remarks dropdown for GeoStudio templates",
+            "matchPatterns": [
+                "templates.geostudio.last-mile.amazon.dev"
+            ]
+        },
+        {
+            "name": "GS 2.0 Remarks - General",
+            "file": "remarks-general.js",
+            "enabled": true,
+            "priority": 8,
+            "description": "General remarks dropdown for GeoStudio templates",
+            "matchPatterns": [
+                "templates.geostudio.last-mile.amazon.dev"
+            ]
+        },
+        {
+            "name": "Left Paste Buttons",
+            "file": "left-paste-buttons.js",
+            "enabled": true,
+            "priority": 9,
+            "description": "Adds paste buttons to left of DP and RE geocode inputs",
+            "matchPatterns": [
+                "geostudio.last-mile.amazon.dev/place"
+            ]
+        },
+        {
+            "name": "Right Copy Buttons",
+            "file": "right-copy-buttons.js",
+            "enabled": true,
+            "priority": 10,
+            "description": "Adds copy buttons to right of DP and RE geocode inputs",
+            "matchPatterns": [
+                "geostudio.last-mile.amazon.dev/place"
+            ]
         }
     ]
 }
