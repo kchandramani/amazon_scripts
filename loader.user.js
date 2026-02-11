@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         🔧 GeoStudio Scripts - Master Loader
 // @namespace    https://github.com/kchandramani/amazon_scripts
-// @version      1.0.0
-// @description  Centralized GeoStudio script loader by kchandramani - Install once, auto-updates on page refresh
+// @version      1.1.0
+// @description  Centralized GeoStudio script loader by kchandramani - Install once, updates on every manual page refresh
 // @author       kchandramani
 // @match        https://na.geostudio.last-mile.amazon.dev/place*
 // @match        https://eu.geostudio.last-mile.amazon.dev/place*
@@ -36,9 +36,8 @@
         GITHUB_USERNAME: 'kchandramani',
         REPO_NAME: 'amazon_scripts',
         BRANCH: 'main',
-        UPDATE_INTERVAL: 60 * 60 * 1000,  // 1 hour
         DEBUG: false,
-        LOADER_VERSION: '1.0.0'
+        LOADER_VERSION: '1.1.0'
     };
 
     const BASE_URL = `https://raw.githubusercontent.com/${CONFIG.GITHUB_USERNAME}/${CONFIG.REPO_NAME}/${CONFIG.BRANCH}`;
@@ -82,16 +81,13 @@
 
 
     // ╔══════════════════════════════════════════════════════════╗
-    // ║  URL MATCHER - Checks if script should run on this page  ║
+    // ║  URL MATCHER                                             ║
     // ╚══════════════════════════════════════════════════════════╝
 
     function shouldRunOnCurrentPage(matchPatterns) {
         if (!matchPatterns || matchPatterns.length === 0) return true;
-
         for (let i = 0; i < matchPatterns.length; i++) {
-            if (CURRENT_URL.includes(matchPatterns[i])) {
-                return true;
-            }
+            if (CURRENT_URL.includes(matchPatterns[i])) return true;
         }
         return false;
     }
@@ -122,12 +118,6 @@
         },
         setVersion: function (version) {
             GM_setValue('manifestVersion', version);
-        },
-        getLastCheck: function () {
-            return GM_getValue('lastUpdateCheck', 0);
-        },
-        setLastCheck: function () {
-            GM_setValue('lastUpdateCheck', Date.now());
         },
         isFirstRun: function () {
             return GM_getValue('firstRunComplete', false) === false;
@@ -268,20 +258,26 @@
 
     // ╔══════════════════════════════════════════════════════════╗
     // ║  MAIN LOGIC                                              ║
+    // ║  Load from cache FIRST → Then check update in background ║
     // ╚══════════════════════════════════════════════════════════╝
 
     async function main() {
         Logger.info('🚀 Master Loader v' + CONFIG.LOADER_VERSION + ' starting...');
         Logger.info('📍 Page: ' + window.location.hostname + window.location.pathname);
 
-        // CASE 1: First time
+        // ────────────────────────────────────────
+        // CASE 1: First time ever (no cache)
+        // ────────────────────────────────────────
         if (Cache.isFirstRun()) {
             await firstTimeDownload();
             return;
         }
 
-        // CASE 2: Has cache
+        // ────────────────────────────────────────
+        // CASE 2: Has cache - Load immediately
+        // ────────────────────────────────────────
         const manifest = Cache.getManifest();
+
         if (!manifest) {
             Logger.warn('⚠️ Cache corrupted. Re-downloading...');
             await firstTimeDownload();
@@ -295,22 +291,20 @@
             return;
         }
 
-        // Load from cache
+        // Load from cache INSTANTLY
         loadScriptsFromCache(manifest);
 
-        // CASE 3: Check for updates on refresh (respecting 1 hour interval)
-        const timeSinceLastCheck = Date.now() - Cache.getLastCheck();
-        if (timeSinceLastCheck >= CONFIG.UPDATE_INTERVAL) {
-            Logger.info('🔍 Checking for updates (last: ' + Math.round(timeSinceLastCheck / 60000) + ' min ago)...');
-            checkForUpdates();
-        } else {
-            Logger.debug('⏭️ Skip update (next in: ' + Math.round((CONFIG.UPDATE_INTERVAL - timeSinceLastCheck) / 60000) + ' min)');
-        }
+        // ────────────────────────────────────────
+        // CASE 3: Check for updates in background
+        // Every manual page refresh = check update
+        // ────────────────────────────────────────
+        Logger.info('🔍 Checking for updates...');
+        checkForUpdates();
     }
 
 
     // ╔══════════════════════════════════════════════════════════╗
-    // ║  LOAD FROM CACHE (with URL matching)                     ║
+    // ║  LOAD FROM CACHE (Instant)                               ║
     // ╚══════════════════════════════════════════════════════════╝
 
     function loadScriptsFromCache(manifest) {
@@ -325,7 +319,6 @@
         let failed = 0;
 
         activeScripts.forEach(function (script) {
-            // Check if script should run on current page
             if (!shouldRunOnCurrentPage(script.matchPatterns)) {
                 Logger.skip(script.name, 'URL mismatch');
                 skipped++;
@@ -369,7 +362,6 @@
             Cache.setManifest(manifest);
             Cache.setVersion(manifest.version);
 
-            // Download ALL scripts (cache everything, even for other pages)
             Logger.info('📦 Downloading ' + manifest.scripts.length + ' scripts...');
 
             const results = await Promise.all(
@@ -386,7 +378,6 @@
                 })
             );
 
-            // Execute only scripts that match current page
             let loaded = 0;
             results.forEach(function (result) {
                 if (result.success && result.code) {
@@ -399,10 +390,9 @@
             });
 
             Cache.setFirstRunComplete();
-            Cache.setLastCheck();
             removeLoadingOverlay();
 
-            Logger.info('🎉 Setup complete! Loaded ' + loaded + ' scripts for this page (v' + manifest.version + ')');
+            Logger.info('🎉 Setup complete! Loaded ' + loaded + ' scripts (v' + manifest.version + ')');
             showStatusBadge('✅ GeoStudio Scripts installed! (' + loaded + ' scripts on this page)', 'success');
 
         } catch (e) {
@@ -414,7 +404,11 @@
 
 
     // ╔══════════════════════════════════════════════════════════╗
-    // ║  CHECK FOR UPDATES (on page refresh only)                ║
+    // ║  CHECK FOR UPDATES (Every manual page refresh)           ║
+    // ║  - Loads cached scripts FIRST (instant)                  ║
+    // ║  - Then silently checks GitHub in background             ║
+    // ║  - If new version found → downloads & caches             ║
+    // ║  - New scripts apply on NEXT refresh                     ║
     // ╚══════════════════════════════════════════════════════════╝
 
     async function checkForUpdates() {
@@ -423,13 +417,13 @@
             const remoteManifest = JSON.parse(manifestRaw);
             const currentVersion = Cache.getVersion();
 
-            Cache.setLastCheck();
-
+            // No update needed
             if (remoteManifest.version === currentVersion) {
                 Logger.info('✅ Up to date (v' + currentVersion + ')');
                 return;
             }
 
+            // Update found
             Logger.info('🔄 Update: v' + currentVersion + ' → v' + remoteManifest.version);
 
             Cache.setManifest(remoteManifest);
@@ -452,6 +446,11 @@
             Logger.info('🔄 Refresh page to use updated scripts.');
             showStatusBadge('🔄 Scripts updated to v' + remoteManifest.version + ' - Refresh to apply!', 'update');
 
+            if (remoteManifest.globalSettings && remoteManifest.globalSettings.killSwitch) {
+                Logger.warn('🛑 Kill switch activated in update!');
+                showStatusBadge('🛑 Scripts have been disabled by admin', 'error');
+            }
+
         } catch (e) {
             Logger.debug('⚠️ Update check failed: ' + e.message);
         }
@@ -467,7 +466,6 @@
             Logger.info('🔄 Force updating...');
             showLoadingOverlay('Force updating GeoStudio scripts...');
 
-            GM_setValue('lastUpdateCheck', 0);
             GM_setValue('manifestVersion', '0');
 
             const manifestRaw = await fetchFromGitHub(MANIFEST_URL);
@@ -489,7 +487,6 @@
                 }
             }
 
-            Cache.setLastCheck();
             removeLoadingOverlay();
 
             Logger.info('✅ Force update complete! ' + count + ' scripts (v' + manifest.version + ')');
@@ -519,10 +516,10 @@
         s += '║   🔧 GeoStudio Scripts Status          ║\n';
         s += '╚═══════════════════════════════════════╝\n\n';
         s += '📦 Version: ' + Cache.getVersion() + '\n';
-        s += '⏰ Last Check: ' + new Date(Cache.getLastCheck()).toLocaleString() + '\n';
         s += '🔧 Loader: v' + CONFIG.LOADER_VERSION + '\n';
         s += '🛑 Kill Switch: ' + (manifest.globalSettings.killSwitch ? 'ON ⚠️' : 'OFF ✅') + '\n';
         s += '📍 Current Page: ' + window.location.hostname + '\n';
+        s += '🔄 Updates: Every manual page refresh\n';
         s += '\n────── Scripts ──────\n\n';
 
         manifest.scripts.forEach(function (sc) {
@@ -556,7 +553,7 @@
     });
 
     GM_registerMenuCommand('ℹ️ About', function () {
-        alert('🔧 GeoStudio Scripts Loader\n\nAuthor: kchandramani\nGitHub: github.com/kchandramani/amazon_scripts\nLoader: v' + CONFIG.LOADER_VERSION + '\nScripts: v' + Cache.getVersion() + '\nUpdate: Every 1 hour on page refresh');
+        alert('🔧 GeoStudio Scripts Loader\n\nAuthor: kchandramani\nGitHub: github.com/kchandramani/amazon_scripts\nLoader: v' + CONFIG.LOADER_VERSION + '\nScripts: v' + Cache.getVersion() + '\nUpdates: Every manual page refresh');
     });
 
 
