@@ -78,7 +78,8 @@
         const acc = findAccordion();
         if (!acc) return;
         const rect = acc.getBoundingClientRect();
-        el.style.top = rect.top + '15px';
+        //el.style.top = rect.top + 'px';
+        el.style.top = (rect.top + 15) + 'px';
         el.style.left = (rect.right + 10) + 'px';
         el.style.right = 'auto';
     }
