@@ -106,6 +106,16 @@
             "matchPatterns": [
                 "geostudio.last-mile.amazon.dev/place"
             ]
+        },
+        {
+            "name": "Delivery Reason Filter",
+            "file": "delivery-reason-filter.js",
+            "enabled": true,
+            "priority": 11,
+            "description": "Floating panel to filter and toggle deliveries by reason",
+            "matchPatterns": [
+                "geostudio.last-mile.amazon.dev/place"
+            ]
         }
     ]
 }
