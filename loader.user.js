@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         🔧 GeoStudio Scripts - Master Loader
 // @namespace    https://github.com/kchandramani/amazon_scripts
-// @version      1.1.0
-// @description  Centralized GeoStudio script loader by kchandramani - Install once, updates on every manual page refresh
+// @version      1.2.0
+// @description  Centralized GeoStudio script loader by kchandramani - Install once, auto-updates on page refresh
 // @author       kchandramani
 // @match        https://na.geostudio.last-mile.amazon.dev/place*
 // @match        https://eu.geostudio.last-mile.amazon.dev/place*
@@ -20,7 +20,6 @@
 // @grant        GM_notification
 // @connect      raw.githubusercontent.com
 // @run-at       document-start
-// @noframes
 // @downloadURL  https://raw.githubusercontent.com/kchandramani/amazon_scripts/main/loader.user.js
 // @updateURL    https://raw.githubusercontent.com/kchandramani/amazon_scripts/main/loader.user.js
 // ==/UserScript==
@@ -37,13 +36,14 @@
         REPO_NAME: 'amazon_scripts',
         BRANCH: 'main',
         DEBUG: false,
-        LOADER_VERSION: '1.1.0'
+        LOADER_VERSION: '1.2.0'
     };
 
     const BASE_URL = `https://raw.githubusercontent.com/${CONFIG.GITHUB_USERNAME}/${CONFIG.REPO_NAME}/${CONFIG.BRANCH}`;
     const MANIFEST_URL = `${BASE_URL}/manifest.json`;
     const SCRIPTS_BASE = `${BASE_URL}/scripts`;
     const CURRENT_URL = window.location.href;
+    const IS_IFRAME = (window.self !== window.top);
 
 
     // ╔══════════════════════════════════════════════════════════╗
@@ -51,7 +51,7 @@
     // ╚══════════════════════════════════════════════════════════╝
 
     const Logger = {
-        prefix: '[🔧 GS Loader]',
+        prefix: IS_IFRAME ? '[🔧 GS Loader 📦 iframe]' : '[🔧 GS Loader]',
         info: function (msg) {
             console.log(`%c${this.prefix} ${msg}`, 'color: #FF9900; font-weight: bold;');
         },
@@ -204,10 +204,13 @@
 
 
     // ╔══════════════════════════════════════════════════════════╗
-    // ║  LOADING OVERLAY                                         ║
+    // ║  LOADING OVERLAY (Only shown on parent page, not iframe) ║
     // ╚══════════════════════════════════════════════════════════╝
 
     function showLoadingOverlay(message) {
+        // Don't show overlay inside iframe
+        if (IS_IFRAME) return;
+
         const overlay = document.createElement('div');
         overlay.id = 'gs-loader-overlay';
         overlay.innerHTML = `
@@ -230,6 +233,9 @@
     }
 
     function showStatusBadge(message, type) {
+        // Don't show badges inside iframe
+        if (IS_IFRAME) return;
+
         const colors = {
             success: '#4CAF50', error: '#f44336',
             update: '#FF9900', info: '#2196F3'
@@ -258,53 +264,69 @@
 
     // ╔══════════════════════════════════════════════════════════╗
     // ║  MAIN LOGIC                                              ║
-    // ║  Load from cache FIRST → Then check update in background ║
     // ╚══════════════════════════════════════════════════════════╝
 
     async function main() {
         Logger.info('🚀 Master Loader v' + CONFIG.LOADER_VERSION + ' starting...');
         Logger.info('📍 Page: ' + window.location.hostname + window.location.pathname);
+        if (IS_IFRAME) Logger.info('📦 Running inside IFRAME');
 
-        // ────────────────────────────────────────
-        // CASE 1: First time ever (no cache)
-        // ────────────────────────────────────────
+        // CASE 1: First time
         if (Cache.isFirstRun()) {
-            await firstTimeDownload();
+            // Only download from parent page, iframe will use same cache
+            if (!IS_IFRAME) {
+                await firstTimeDownload();
+            } else {
+                // Iframe: Wait for parent to finish downloading
+                Logger.info('⏳ Waiting for parent page to download scripts...');
+                let waitCount = 0;
+                const waitForCache = setInterval(function() {
+                    waitCount++;
+                    if (!Cache.isFirstRun()) {
+                        clearInterval(waitForCache);
+                        const manifest = Cache.getManifest();
+                        if (manifest) loadScriptsFromCache(manifest);
+                    }
+                    if (waitCount > 50) { // 5 seconds max wait
+                        clearInterval(waitForCache);
+                        Logger.warn('⚠️ Timeout waiting for parent download');
+                    }
+                }, 100);
+            }
             return;
         }
 
-        // ────────────────────────────────────────
-        // CASE 2: Has cache - Load immediately
-        // ────────────────────────────────────────
+        // CASE 2: Has cache
         const manifest = Cache.getManifest();
 
         if (!manifest) {
-            Logger.warn('⚠️ Cache corrupted. Re-downloading...');
-            await firstTimeDownload();
+            if (!IS_IFRAME) {
+                Logger.warn('⚠️ Cache corrupted. Re-downloading...');
+                await firstTimeDownload();
+            }
             return;
         }
 
         // Kill switch
         if (manifest.globalSettings && manifest.globalSettings.killSwitch) {
             Logger.warn('🛑 Kill switch is ON');
-            showStatusBadge('🛑 Scripts disabled by admin', 'error');
+            if (!IS_IFRAME) showStatusBadge('🛑 Scripts disabled by admin', 'error');
             return;
         }
 
         // Load from cache INSTANTLY
         loadScriptsFromCache(manifest);
 
-        // ────────────────────────────────────────
-        // CASE 3: Check for updates in background
-        // Every manual page refresh = check update
-        // ────────────────────────────────────────
-        Logger.info('🔍 Checking for updates...');
-        checkForUpdates();
+        // CASE 3: Check for updates (only from parent page, not iframe)
+        if (!IS_IFRAME) {
+            Logger.info('🔍 Checking for updates...');
+            checkForUpdates();
+        }
     }
 
 
     // ╔══════════════════════════════════════════════════════════╗
-    // ║  LOAD FROM CACHE (Instant)                               ║
+    // ║  LOAD FROM CACHE                                         ║
     // ╚══════════════════════════════════════════════════════════╝
 
     function loadScriptsFromCache(manifest) {
@@ -404,11 +426,7 @@
 
 
     // ╔══════════════════════════════════════════════════════════╗
-    // ║  CHECK FOR UPDATES (Every manual page refresh)           ║
-    // ║  - Loads cached scripts FIRST (instant)                  ║
-    // ║  - Then silently checks GitHub in background             ║
-    // ║  - If new version found → downloads & caches             ║
-    // ║  - New scripts apply on NEXT refresh                     ║
+    // ║  CHECK FOR UPDATES (Only from parent page)               ║
     // ╚══════════════════════════════════════════════════════════╝
 
     async function checkForUpdates() {
@@ -417,13 +435,11 @@
             const remoteManifest = JSON.parse(manifestRaw);
             const currentVersion = Cache.getVersion();
 
-            // No update needed
             if (remoteManifest.version === currentVersion) {
                 Logger.info('✅ Up to date (v' + currentVersion + ')');
                 return;
             }
 
-            // Update found
             Logger.info('🔄 Update: v' + currentVersion + ' → v' + remoteManifest.version);
 
             Cache.setManifest(remoteManifest);
@@ -445,11 +461,6 @@
             Logger.info('✅ ' + updated + ' scripts updated to v' + remoteManifest.version);
             Logger.info('🔄 Refresh page to use updated scripts.');
             showStatusBadge('🔄 Scripts updated to v' + remoteManifest.version + ' - Refresh to apply!', 'update');
-
-            if (remoteManifest.globalSettings && remoteManifest.globalSettings.killSwitch) {
-                Logger.warn('🛑 Kill switch activated in update!');
-                showStatusBadge('🛑 Scripts have been disabled by admin', 'error');
-            }
 
         } catch (e) {
             Logger.debug('⚠️ Update check failed: ' + e.message);
@@ -501,60 +512,62 @@
 
 
     // ╔══════════════════════════════════════════════════════════╗
-    // ║  TAMPERMONKEY MENU                                       ║
+    // ║  TAMPERMONKEY MENU (Only register on parent page)        ║
     // ╚══════════════════════════════════════════════════════════╝
 
-    GM_registerMenuCommand('🔄 Force Update Scripts', function () {
-        if (confirm('Download latest scripts from GitHub?')) forceUpdate();
-    });
-
-    GM_registerMenuCommand('📋 Script Status', function () {
-        const manifest = Cache.getManifest();
-        if (!manifest) { alert('No scripts loaded yet.'); return; }
-
-        let s = '╔═══════════════════════════════════════╗\n';
-        s += '║   🔧 GeoStudio Scripts Status          ║\n';
-        s += '╚═══════════════════════════════════════╝\n\n';
-        s += '📦 Version: ' + Cache.getVersion() + '\n';
-        s += '🔧 Loader: v' + CONFIG.LOADER_VERSION + '\n';
-        s += '🛑 Kill Switch: ' + (manifest.globalSettings.killSwitch ? 'ON ⚠️' : 'OFF ✅') + '\n';
-        s += '📍 Current Page: ' + window.location.hostname + '\n';
-        s += '🔄 Updates: Every manual page refresh\n';
-        s += '\n────── Scripts ──────\n\n';
-
-        manifest.scripts.forEach(function (sc) {
-            const cached = Cache.getScript(sc.file) ? '💾' : '⚠️';
-            const enabled = sc.enabled ? '✅' : '❌';
-            const matches = shouldRunOnCurrentPage(sc.matchPatterns) ? '🟢' : '🔴';
-            s += enabled + ' ' + cached + ' ' + matches + ' [P' + sc.priority + '] ' + sc.name + '\n';
-            s += '   📝 ' + sc.description + '\n';
-            s += '   🌐 ' + (sc.matchPatterns ? sc.matchPatterns.join(', ') : 'All pages') + '\n\n';
+    if (!IS_IFRAME) {
+        GM_registerMenuCommand('🔄 Force Update Scripts', function () {
+            if (confirm('Download latest scripts from GitHub?')) forceUpdate();
         });
 
-        s += '────── Legend ──────\n';
-        s += '✅/❌ = Enabled/Disabled\n';
-        s += '💾/⚠️ = Cached/Not cached\n';
-        s += '🟢/🔴 = Runs on this page / Not this page\n';
+        GM_registerMenuCommand('📋 Script Status', function () {
+            const manifest = Cache.getManifest();
+            if (!manifest) { alert('No scripts loaded yet.'); return; }
 
-        alert(s);
-    });
+            let s = '╔═══════════════════════════════════════╗\n';
+            s += '║   🔧 GeoStudio Scripts Status          ║\n';
+            s += '╚═══════════════════════════════════════╝\n\n';
+            s += '📦 Version: ' + Cache.getVersion() + '\n';
+            s += '🔧 Loader: v' + CONFIG.LOADER_VERSION + '\n';
+            s += '🛑 Kill Switch: ' + (manifest.globalSettings.killSwitch ? 'ON ⚠️' : 'OFF ✅') + '\n';
+            s += '📍 Current Page: ' + window.location.hostname + '\n';
+            s += '🔄 Updates: Every manual page refresh\n';
+            s += '\n────── Scripts ──────\n\n';
 
-    GM_registerMenuCommand('🗑️ Clear Cache & Redownload', function () {
-        if (confirm('Clear all cached scripts and redownload?')) {
-            Cache.clearAll();
-            location.reload();
-        }
-    });
+            manifest.scripts.forEach(function (sc) {
+                const cached = Cache.getScript(sc.file) ? '💾' : '⚠️';
+                const enabled = sc.enabled ? '✅' : '❌';
+                const matches = shouldRunOnCurrentPage(sc.matchPatterns) ? '🟢' : '🔴';
+                s += enabled + ' ' + cached + ' ' + matches + ' [P' + sc.priority + '] ' + sc.name + '\n';
+                s += '   📝 ' + sc.description + '\n';
+                s += '   🌐 ' + (sc.matchPatterns ? sc.matchPatterns.join(', ') : 'All pages') + '\n\n';
+            });
 
-    GM_registerMenuCommand('🐛 Toggle Debug Mode', function () {
-        CONFIG.DEBUG = !CONFIG.DEBUG;
-        GM_setValue('debugMode', CONFIG.DEBUG);
-        alert('Debug mode: ' + (CONFIG.DEBUG ? 'ON 🟢' : 'OFF 🔴') + '\nRefresh to see logs.');
-    });
+            s += '────── Legend ──────\n';
+            s += '✅/❌ = Enabled/Disabled\n';
+            s += '💾/⚠️ = Cached/Not cached\n';
+            s += '🟢/🔴 = Runs on this page / Not this page\n';
 
-    GM_registerMenuCommand('ℹ️ About', function () {
-        alert('🔧 GeoStudio Scripts Loader\n\nAuthor: kchandramani\nGitHub: github.com/kchandramani/amazon_scripts\nLoader: v' + CONFIG.LOADER_VERSION + '\nScripts: v' + Cache.getVersion() + '\nUpdates: Every manual page refresh');
-    });
+            alert(s);
+        });
+
+        GM_registerMenuCommand('🗑️ Clear Cache & Redownload', function () {
+            if (confirm('Clear all cached scripts and redownload?')) {
+                Cache.clearAll();
+                location.reload();
+            }
+        });
+
+        GM_registerMenuCommand('🐛 Toggle Debug Mode', function () {
+            CONFIG.DEBUG = !CONFIG.DEBUG;
+            GM_setValue('debugMode', CONFIG.DEBUG);
+            alert('Debug mode: ' + (CONFIG.DEBUG ? 'ON 🟢' : 'OFF 🔴') + '\nRefresh to see logs.');
+        });
+
+        GM_registerMenuCommand('ℹ️ About', function () {
+            alert('🔧 GeoStudio Scripts Loader\n\nAuthor: kchandramani\nGitHub: github.com/kchandramani/amazon_scripts\nLoader: v' + CONFIG.LOADER_VERSION + '\nScripts: v' + Cache.getVersion() + '\nUpdates: Every manual page refresh\nIframe Support: ✅ Enabled');
+        });
+    }
 
 
     // ╔══════════════════════════════════════════════════════════╗
