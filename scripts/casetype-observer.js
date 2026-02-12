@@ -1,5 +1,3 @@
-// CaseType Text Observer and Display with Auto-Click
-
 (function() {
     'use strict';
 
@@ -24,7 +22,7 @@
         if (addressDisplay) return;
         addressDisplay = document.createElement('div');
         addressDisplay.id = 'addressDisplay';
-        addressDisplay.style.cssText = 'position:fixed;top:70px;right:500px;padding:15px;padding-top:25px;background-color:rgba(0,100,0,0.8);color:white;z-index:9999;border-radius:5px;max-width:400px;word-wrap:break-word;font-family:Arial,sans-serif;font-size:18px;font-weight:bold;line-height:1.8;display:none;';
+        addressDisplay.style.cssText = 'position:fixed;top:70px;right:500px;padding:15px;padding-top:25px;background-color:rgba(0,100,0,0.8);color:white;z-index:9999;border-radius:5px;max-width:400px;word-wrap:break-word;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;line-height:1.6;display:none;';
 
         const closeButton = document.createElement('button');
         closeButton.id = 'addressCloseBtn';
@@ -197,63 +195,149 @@
             } catch (e) { }
         }
 
-        if (!found && retryCount < maxRetries) {
+        if (found) {
+            setTimeout(() => { checkForPDLAndHint(0); }, 500);
+        } else if (retryCount < maxRetries) {
             setTimeout(() => { clickEditDetails(retryCount + 1); }, 100);
         }
     }
 
-    function isUSAddress(text) {
-        if (!text) return false;
-        const parts = text.split(',').map(part => part.trim().toUpperCase());
-        return parts.some(part => part === 'US' || part === 'USA' || part === 'UNITED STATES');
+    function findPDLValue() {
+        try {
+            const allLabels = document.querySelectorAll('p[mdn-text]');
+            for (const label of allLabels) {
+                if (label.textContent && label.textContent.trim() === 'Preferred Delivery Location') {
+                    let container = label.parentElement;
+                    let attempts = 0;
+                    while (container && attempts < 5) {
+                        const valueEl = container.querySelector('[mdn-select-value]');
+                        if (valueEl) {
+                            const val = valueEl.textContent.trim();
+                            return val;
+                        }
+                        container = container.parentElement;
+                        attempts++;
+                    }
+                }
+            }
+        } catch (e) { }
+
+        try {
+            const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+                acceptNode: function(node) {
+                    return node.nodeValue && node.nodeValue.trim() === 'Preferred Delivery Location' ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+                }
+            });
+            while (walker.nextNode()) {
+                let container = walker.currentNode.parentElement;
+                let attempts = 0;
+                while (container && attempts < 6) {
+                    const valueEl = container.querySelector('[mdn-select-value]');
+                    if (valueEl) {
+                        return valueEl.textContent.trim();
+                    }
+                    container = container.parentElement;
+                    attempts++;
+                }
+            }
+        } catch (e) { }
+
+        return null;
     }
 
-    function updateAddressDisplay(text) {
+    function findDeliveryHint() {
+        try {
+            const allLabels = document.querySelectorAll('p[mdn-text]');
+            for (const label of allLabels) {
+                if (label.textContent && label.textContent.trim() === 'Driver delivery hint') {
+                    let container = label.parentElement;
+                    let attempts = 0;
+                    while (container && attempts < 5) {
+                        const allPs = container.querySelectorAll('p[mdn-text]');
+                        for (const p of allPs) {
+                            if (p !== label && p.textContent && p.textContent.trim() !== '' && p.textContent.trim() !== 'Driver delivery hint') {
+                                return p.textContent.trim();
+                            }
+                        }
+                        container = container.parentElement;
+                        attempts++;
+                    }
+                }
+            }
+        } catch (e) { }
+
+        try {
+            const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+                acceptNode: function(node) {
+                    return node.nodeValue && node.nodeValue.trim() === 'Driver delivery hint' ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+                }
+            });
+            while (walker.nextNode()) {
+                let container = walker.currentNode.parentElement;
+                let attempts = 0;
+                while (container && attempts < 6) {
+                    const allPs = container.querySelectorAll('p[mdn-text]');
+                    for (const p of allPs) {
+                        const txt = p.textContent.trim();
+                        if (txt !== '' && txt !== 'Driver delivery hint') {
+                            return txt;
+                        }
+                    }
+                    container = container.parentElement;
+                    attempts++;
+                }
+            }
+        } catch (e) { }
+
+        return null;
+    }
+
+    function updateInfoDisplay(pdlValue, hintValue) {
         if (!addressDisplay) createAddressDisplay();
         const contentDiv = document.getElementById('addressContent');
 
-        if (text && isUSAddress(text)) {
-            const parts = text.split(',').map(part => part.trim());
-            const formattedText = parts.join('<br>');
-            contentDiv.innerHTML = '<strong style="font-size:15px;text-decoration:underline;">Address:</strong><br><br>' + formattedText;
-            addressDisplay.style.backgroundColor = 'rgba(0,100,0,0.8)';
-            addressDisplay.style.display = 'block';
-            addressFound = true;
-        } else if (text) {
-            contentDiv.innerHTML = '<strong style="font-size:15px;">Address:</strong><br><br>Hint and PDL are on the way';
-            addressDisplay.style.backgroundColor = 'rgba(100,100,100,0.8)';
-            addressDisplay.style.display = 'block';
-            addressFound = true;
+        let html = '';
+
+        html += '<strong style="font-size:13px;text-decoration:underline;">PDL:</strong><br>';
+        if (pdlValue && pdlValue !== 'Select safe place type') {
+            html += '<span style="font-size:12px;">' + pdlValue + '</span>';
         } else {
-            contentDiv.innerHTML = '<strong style="font-size:15px;">Address:</strong><br><br>Not Found';
-            addressDisplay.style.backgroundColor = 'rgba(100,100,100,0.8)';
-            addressDisplay.style.display = 'block';
-            addressFound = true;
+            html += '<span style="font-size:12px;color:#ffcccc;">Not Set</span>';
         }
+
+        html += '<br><br>';
+
+        html += '<strong style="font-size:13px;text-decoration:underline;">Delivery Hint:</strong><br>';
+        if (hintValue) {
+            html += '<span style="font-size:12px;">' + hintValue + '</span>';
+        } else {
+            html += '<span style="font-size:12px;color:#ffcccc;">Not Found</span>';
+        }
+
+        contentDiv.innerHTML = html;
+
+        if ((pdlValue && pdlValue !== 'Select safe place type') || hintValue) {
+            addressDisplay.style.backgroundColor = 'rgba(0,100,0,0.8)';
+        } else {
+            addressDisplay.style.backgroundColor = 'rgba(100,100,100,0.8)';
+        }
+
+        addressDisplay.style.display = 'block';
+        addressFound = true;
     }
 
-    function checkForAddress() {
-        const addressSelectors = [
-            'div.css-1t6ofyo p.css-hd6zo3', 'div.css-1t6ofyo p[mdn-text]',
-            'div.css-1t6ofyo p', '.css-1t6ofyo p.css-hd6zo3',
-            '.css-1t6ofyo p', 'p.css-hd6zo3', 'p[mdn-text]'
-        ];
-        let addressText = null;
-        for (const selector of addressSelectors) {
-            try {
-                const elements = document.querySelectorAll(selector);
-                if (elements.length > 0) {
-                    for (const el of elements) {
-                        if (el.textContent && el.textContent.trim() !== '') {
-                            addressText = el.textContent.trim();
-                            break;
-                        }
-                    }
-                    if (addressText) break;
-                }
-            } catch (e) { }
+    function checkForPDLAndHint(retryCount) {
+        retryCount = retryCount || 0;
+        const maxRetries = 50;
+
+        let pdlValue = findPDLValue();
+        let hintValue = findDeliveryHint();
+
+        if ((pdlValue && pdlValue !== 'Select safe place type') || hintValue || retryCount >= maxRetries) {
+            updateInfoDisplay(pdlValue, hintValue);
+        } else {
+            setTimeout(() => { checkForPDLAndHint(retryCount + 1); }, 100);
         }
-        updateAddressDisplay(addressText);
     }
 
     function updateDisplay(text) {
@@ -263,7 +347,7 @@
             floatingDisplay.textContent = text;
             textFound = true;
             setTimeout(clickTargetButton, 100);
-            setTimeout(() => { checkForAddress(); }, 100);
+            setTimeout(() => { checkForPDLAndHint(0); }, 100);
             if (text.includes('source1')) {
                 setTimeout(() => { clickSharedDeliveryArea(0); }, 100);
             }
@@ -309,7 +393,7 @@
         if (addressDisplay) {
             const contentDiv = document.getElementById('addressContent');
             if (contentDiv) {
-                contentDiv.innerHTML = '<strong>Address:</strong><br><br>Searching...';
+                contentDiv.innerHTML = '';
             }
             addressDisplay.style.backgroundColor = 'rgba(0,0,0,0.8)';
             addressDisplay.style.display = 'none';
@@ -317,7 +401,7 @@
     }
 
     function initialize() {
-        console.log('Initializing CaseType Observer v0.9...');
+        console.log('Initializing CaseType Observer v1.0...');
 
         createFloatingDisplay();
         createAddressDisplay();
