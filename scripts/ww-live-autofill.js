@@ -1,11 +1,8 @@
-// WW LIVE Autofill Bucket for everything 2.0
-// Auto select options for different scenarios
-
 (function() {
     function createButton(label, left, action) {
         var button = document.createElement("button");
         button.innerHTML = label;
-        button.setAttribute('style', 'position: absolute; z-index: 2500; padding: 2px; left:' + left + '%; top: 38.5%; background-color: #E8E845; color: #000000; border: 4px #E8E845 #CCCCCC; border-radius: 8px; font-size: 17px; font-family: "Amazon Ember"; font-weight: bold; transition: background-color 0.3s, border-color 0.3s;');
+        button.setAttribute('style', `position: absolute; z-index: 2500; padding: 2px; left:${left}%; top: 38.5%; background-color: #E8E845; color: #000000; border: 4px #E8E845 #CCCCCC; border-radius: 8px; font-size: 17px; font-family: "Amazon Ember"; font-weight: bold; transition: background-color 0.3s, border-color 0.3s;`);
 
         button.addEventListener('click', async () => {
             try {
@@ -43,30 +40,29 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    async function selectRadioButton(value, isAddressClassification) {
-        isAddressClassification = isAddressClassification || false;
-        var container = document;
+    async function selectRadioButton(value, isAddressClassification = false) {
+        let container = document;
         if (isAddressClassification) {
-            var addressClassificationDiv = document.querySelector('div.css-19hedjk');
+            const addressClassificationDiv = document.querySelector('div.css-19hedjk');
             if (!addressClassificationDiv) throw 'Address Classification section not found.';
             container = addressClassificationDiv;
         }
 
-        var labels = container.querySelectorAll('label.css-1bpc0hw');
-        for (var i = 0; i < labels.length; i++) {
-            var input = labels[i].querySelector('input[value="' + value + '"]');
+        const labels = container.querySelectorAll('label.css-rzgavw');
+        for (let label of labels) {
+            const input = label.querySelector(`input[value="${value}"]`);
             if (input) {
-                labels[i].click();
-                await delay(10);
+                label.click(); // Click the label instead of the input
+                await delay(10); // Small delay to allow for any UI updates
                 return;
             }
         }
-        throw 'Radio button with value ' + value + ' not found.';
+        throw `Radio button with value ${value} not found.`;
     }
 
     async function selectOptionById(id, optionIndex) {
         var element = document.getElementById(id);
-        if (!element) throw 'Element with ID ' + id + ' not found.';
+        if (!element) throw `Element with ID ${id} not found.`;
         var event = new Event("mousedown", { bubbles: true });
         element.dispatchEvent(event);
 
@@ -74,13 +70,13 @@
 
         var optionsListId = element.getAttribute("aria-controls");
         var optionsList = document.getElementById(optionsListId);
-        if (!optionsList) throw 'Options list for element with ID ' + id + ' not found.';
+        if (!optionsList) throw `Options list for element with ID ${id} not found.`;
 
         var options = optionsList.querySelectorAll('[role="option"]');
         if (options.length > optionIndex) {
             options[optionIndex].click();
         } else {
-            throw 'Option at index ' + optionIndex + ' not found for element with ID ' + id + '.';
+            throw `Option at index ${optionIndex} not found for element with ID ${id}.`;
         }
     }
 
@@ -88,14 +84,15 @@
         try {
             await selectOptionById("source", optionIndex);
         } catch (error) {
-            // If the source selection fails, handle silently
+            // If the source selection fails, we can log the error or handle it accordingly.
         }
     }
 
     async function svBuAction() {
         await selectRadioButton("FIXED(Actionable)");
         await selectOptionById("granularity", 0);
-        await selectRadioButton("NA");
+        await selectRadioButton("Perfect Address");
+        await selectOptionById("UTLReason", 6);
         await selectSourceOption(0);
     }
 
@@ -103,42 +100,48 @@
         await selectRadioButton("FIXED(Actionable)");
         await selectOptionById("granularity", 1);
         await selectSourceOption(0);
-        await selectRadioButton("NA");
+        await selectOptionById("UTLReason", 6);
+        await selectRadioButton("Perfect Address");;
     }
 
     async function svNdAction() {
         await selectRadioButton("FIXED(Actionable)");
         await selectOptionById("granularity", 3);
         await selectSourceOption(0);
-        await selectRadioButton("NA");
+        await selectOptionById("UTLReason", 6);
+        await selectRadioButton("Perfect Address");
     }
 
     async function svCAction() {
         await selectRadioButton("FIXED(Actionable)");
         await selectOptionById("granularity", 2);
         await selectSourceOption(0);
-        await selectRadioButton("NA");
+        await selectOptionById("UTLReason", 6);
+        await selectRadioButton("Perfect Address");
     }
 
     async function utlAction() {
         await selectRadioButton("NEI(Non-actionable)");
         await selectOptionById("granularity", 4);
-        await selectSourceOption(6);
-        await selectRadioButton("NA");
+        await selectSourceOption(7);
+        await selectRadioButton("Perfect Address");
+        await selectOptionById("UTLReason", 6);
     }
 
     async function nakAction() {
         await selectRadioButton("NFR(Non-actionable)");
         await selectOptionById("granularity", 5);
-        await selectSourceOption(6);
-        await selectRadioButton("NA");
+        await selectSourceOption(7);
+        await selectRadioButton("Perfect Address");
+        await selectOptionById("UTLReason", 6);
     }
 
     async function dfPoAction() {
-        await selectRadioButton("NEI(Non-actionable)");
+        await selectRadioButton("NEI(Non-actionable)"); // For actionTaken
         await selectOptionById("granularity", 5);
         await selectSourceOption(6);
-        await selectRadioButton("NA", true);
+        await selectRadioButton("Perfect Address", true); // For addressClassification
+        await selectOptionById("UTLReason", 6);
     }
 
     async function nrbAction() {
@@ -146,15 +149,16 @@
         await selectOptionById("granularity", 1);
         await selectSourceOption(0);
         await selectOptionById("roadLevelReason", 1);
-        await selectRadioButton("NA");
+        await selectRadioButton("Perfect Address");
+        await selectOptionById("UTLReason", 6);
     }
 
     async function utnfAction() {
         await selectRadioButton("NEI(Non-actionable)");
         await selectOptionById("granularity", 4);
-        await selectSourceOption(6);
+        await selectSourceOption(7);
         await selectOptionById("UTLReason", 1);
-        await selectRadioButton("NA");
+        await selectRadioButton("Perfect Address");
     }
 
     function showError(errorMessage) {
@@ -174,14 +178,15 @@
         errorDiv.style.fontFamily = "Amazon Ember";
         document.body.appendChild(errorDiv);
 
-        setTimeout(function() {
+        setTimeout(() => {
             errorDiv.style.opacity = 0;
-            setTimeout(function() {
+            setTimeout(() => {
                 document.body.removeChild(errorDiv);
             }, 20);
         }, 2000);
     }
 
+    // Create buttons at the top of the screen, spaced evenly
     createButton("Sv-BD", 3, svBuAction);
     createButton("Sv-RD", 13, svRdAction);
     createButton("Sv-ND", 23, svNdAction);
