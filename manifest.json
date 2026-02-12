@@ -105,7 +105,7 @@
         },
         {
             "name": "Auditbook TimeSheet Script",
-            "file": "auditbook-timesheet.js",
+            "file": "auditBook-productivity-calculator.js",
             "enabled": true,
             "priority": 13,
             "description": "Your auditbook script timesheet",
