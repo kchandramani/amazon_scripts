@@ -205,7 +205,7 @@
     function isUSAddress(text) {
         if (!text) return false;
         const parts = text.split(',').map(part => part.trim().toUpperCase());
-        return parts.some(part => part === 'US' || part === 'USA' || part === 'UNITED STATES');
+        return parts.some(part => part === 'US' || part === 'USA' || part === 'UNITED STATES' || === 'MX' || part === 'BR' || part === 'CA');
     }
 
     function updateAddressDisplay(text) {
@@ -220,10 +220,10 @@
             addressDisplay.style.display = 'block';
             addressFound = true;
         } else if (text) {
-            contentDiv.innerHTML = '<strong style="font-size:15px;">Address:</strong><br><br>Not a US Address';
-            addressDisplay.style.backgroundColor = 'rgba(100,100,100,0.8)';
-            addressDisplay.style.display = 'block';
-            addressFound = true;
+            
+            contentDiv.innerHTML = ''; // Clear the content
+            addressDisplay.style.display = 'none'; // Hide it instead of showing
+            addressFound = false;
         } else {
             contentDiv.innerHTML = '<strong style="font-size:15px;">Address:</strong><br><br>Not Found';
             addressDisplay.style.backgroundColor = 'rgba(100,100,100,0.8)';
