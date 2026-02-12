@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🔧 GeoStudio Scripts - Master Loader
 // @namespace    https://github.com/kchandramani/amazon_scripts
-// @version      1.2.0
+// @version      1.3.0
 // @description  Centralized GeoStudio script loader by kchandramani - Install once, auto-updates on page refresh
 // @author       kchandramani
 // @match        https://na.geostudio.last-mile.amazon.dev/place*
@@ -20,6 +20,7 @@
 // @grant        GM_notification
 // @connect      raw.githubusercontent.com
 // @run-at       document-start
+// @noframes
 // @downloadURL  https://raw.githubusercontent.com/kchandramani/amazon_scripts/main/loader.user.js
 // @updateURL    https://raw.githubusercontent.com/kchandramani/amazon_scripts/main/loader.user.js
 // ==/UserScript==
@@ -36,14 +37,15 @@
         REPO_NAME: 'amazon_scripts',
         BRANCH: 'main',
         DEBUG: false,
-        LOADER_VERSION: '1.2.0'
+        LOADER_VERSION: '1.3.0'
     };
 
     const BASE_URL = `https://raw.githubusercontent.com/${CONFIG.GITHUB_USERNAME}/${CONFIG.REPO_NAME}/${CONFIG.BRANCH}`;
     const MANIFEST_URL = `${BASE_URL}/manifest.json`;
     const SCRIPTS_BASE = `${BASE_URL}/scripts`;
     const CURRENT_URL = window.location.href;
-    const IS_IFRAME = (window.self !== window.top);
+    const IS_PLACE_PAGE = CURRENT_URL.includes('geostudio.last-mile.amazon.dev/place');
+    const IS_TEMPLATE_PAGE = CURRENT_URL.includes('templates.geostudio.last-mile.amazon.dev');
 
 
     // ╔══════════════════════════════════════════════════════════╗
@@ -51,7 +53,7 @@
     // ╚══════════════════════════════════════════════════════════╝
 
     const Logger = {
-        prefix: IS_IFRAME ? '[🔧 GS Loader 📦 iframe]' : '[🔧 GS Loader]',
+        prefix: '[🔧 GS Loader]',
         info: function (msg) {
             console.log(`%c${this.prefix} ${msg}`, 'color: #FF9900; font-weight: bold;');
         },
@@ -76,6 +78,9 @@
         },
         fail: function (scriptName, error) {
             console.error(`${this.prefix} ❌ ${scriptName}:`, error);
+        },
+        iframe: function (msg) {
+            console.log(`%c${this.prefix} 📦 [IFRAME] ${msg}`, 'color: #2196F3; font-weight: bold;');
         }
     };
 
@@ -84,12 +89,16 @@
     // ║  URL MATCHER                                             ║
     // ╚══════════════════════════════════════════════════════════╝
 
-    function shouldRunOnCurrentPage(matchPatterns) {
+    function shouldRunOnPage(matchPatterns, pageUrl) {
         if (!matchPatterns || matchPatterns.length === 0) return true;
         for (let i = 0; i < matchPatterns.length; i++) {
-            if (CURRENT_URL.includes(matchPatterns[i])) return true;
+            if (pageUrl.includes(matchPatterns[i])) return true;
         }
         return false;
+    }
+
+    function shouldRunOnCurrentPage(matchPatterns) {
+        return shouldRunOnPage(matchPatterns, CURRENT_URL);
     }
 
 
@@ -171,7 +180,7 @@
 
 
     // ╔══════════════════════════════════════════════════════════╗
-    // ║  SCRIPT EXECUTOR                                         ║
+    // ║  SCRIPT EXECUTOR (for current page)                      ║
     // ╚══════════════════════════════════════════════════════════╝
 
     function executeScript(code, scriptName) {
@@ -204,13 +213,156 @@
 
 
     // ╔══════════════════════════════════════════════════════════╗
-    // ║  LOADING OVERLAY (Only shown on parent page, not iframe) ║
+    // ║  IFRAME SCRIPT INJECTOR                                  ║
+    // ║  Injects template scripts directly into iframe           ║
+    // ╚══════════════════════════════════════════════════════════╝
+
+    function injectScriptIntoIframe(iframeDoc, code, scriptName) {
+        try {
+            const scriptEl = iframeDoc.createElement('script');
+            scriptEl.textContent = `
+                (function() {
+                    'use strict';
+                    try {
+                        ${code}
+                    } catch(e) {
+                        console.error('[${scriptName}] Runtime Error:', e);
+                    }
+                })();
+            `;
+            iframeDoc.body.appendChild(scriptEl);
+            Logger.iframe('✅ ' + scriptName);
+            return true;
+        } catch (e) {
+            Logger.iframe('❌ ' + scriptName + ': ' + e.message);
+            return false;
+        }
+    }
+
+    function loadScriptsIntoIframe(iframe) {
+        try {
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+            const iframeUrl = iframe.src || '';
+
+            if (!iframeUrl.includes('templates.geostudio.last-mile.amazon.dev')) {
+                return; // Not a templates iframe, skip
+            }
+
+            Logger.iframe('Found templates iframe: ' + iframeUrl);
+
+            const manifest = Cache.getManifest();
+            if (!manifest) return;
+
+            const templateScripts = manifest.scripts
+                .filter(function (s) { return s.enabled; })
+                .filter(function (s) { return shouldRunOnPage(s.matchPatterns, iframeUrl); })
+                .sort(function (a, b) { return a.priority - b.priority; });
+
+            if (templateScripts.length === 0) {
+                Logger.iframe('No matching scripts for this iframe');
+                return;
+            }
+
+            Logger.iframe('Injecting ' + templateScripts.length + ' scripts...');
+
+            let loaded = 0;
+            templateScripts.forEach(function (script) {
+                const code = Cache.getScript(script.file);
+                if (code) {
+                    if (injectScriptIntoIframe(iframeDoc, code, script.name)) {
+                        loaded++;
+                    }
+                } else {
+                    Logger.iframe('⚠️ No cache: ' + script.name);
+                }
+            });
+
+            Logger.iframe('🎉 Done! Injected ' + loaded + ' scripts into iframe');
+
+        } catch (e) {
+            Logger.iframe('❌ Cannot access iframe: ' + e.message);
+            Logger.iframe('This might be a cross-origin iframe restriction');
+        }
+    }
+
+    // ╔══════════════════════════════════════════════════════════╗
+    // ║  IFRAME WATCHER                                          ║
+    // ║  Watches for templates iframe to appear, then injects    ║
+    // ╚══════════════════════════════════════════════════════════╝
+
+    function watchForIframes() {
+        // Only watch for iframes on the place page
+        if (!IS_PLACE_PAGE) return;
+
+        Logger.info('👁️ Watching for template iframes...');
+
+        const processedIframes = new WeakSet();
+
+        function checkIframes() {
+            const iframes = document.querySelectorAll('iframe');
+
+            iframes.forEach(function (iframe) {
+                // Skip already processed iframes
+                if (processedIframes.has(iframe)) return;
+
+                const src = iframe.src || '';
+                if (src.includes('templates.geostudio.last-mile.amazon.dev')) {
+
+                    // Mark as processed
+                    processedIframes.add(iframe);
+
+                    // If iframe is already loaded
+                    if (iframe.contentDocument && iframe.contentDocument.body) {
+                        Logger.iframe('Iframe already loaded, injecting now...');
+                        loadScriptsIntoIframe(iframe);
+                    }
+
+                    // Also listen for load event (in case it reloads)
+                    iframe.addEventListener('load', function () {
+                        Logger.iframe('Iframe loaded/reloaded, injecting scripts...');
+                        // Small delay to let iframe DOM settle
+                        setTimeout(function () {
+                            loadScriptsIntoIframe(iframe);
+                        }, 500);
+                    });
+                }
+            });
+        }
+
+        // Check immediately
+        checkIframes();
+
+        // Watch for new iframes being added to DOM
+        const observer = new MutationObserver(function (mutations) {
+            let hasNewNodes = false;
+            mutations.forEach(function (mutation) {
+                if (mutation.addedNodes.length > 0) {
+                    hasNewNodes = true;
+                }
+            });
+            if (hasNewNodes) {
+                checkIframes();
+            }
+        });
+
+        if (document.body) {
+            observer.observe(document.body, { childList: true, subtree: true });
+        } else {
+            document.addEventListener('DOMContentLoaded', function () {
+                observer.observe(document.body, { childList: true, subtree: true });
+            });
+        }
+
+        // Also check periodically (backup)
+        setInterval(checkIframes, 2000);
+    }
+
+
+    // ╔══════════════════════════════════════════════════════════╗
+    // ║  LOADING OVERLAY                                         ║
     // ╚══════════════════════════════════════════════════════════╝
 
     function showLoadingOverlay(message) {
-        // Don't show overlay inside iframe
-        if (IS_IFRAME) return;
-
         const overlay = document.createElement('div');
         overlay.id = 'gs-loader-overlay';
         overlay.innerHTML = `
@@ -233,9 +385,6 @@
     }
 
     function showStatusBadge(message, type) {
-        // Don't show badges inside iframe
-        if (IS_IFRAME) return;
-
         const colors = {
             success: '#4CAF50', error: '#f44336',
             update: '#FF9900', info: '#2196F3'
@@ -269,30 +418,13 @@
     async function main() {
         Logger.info('🚀 Master Loader v' + CONFIG.LOADER_VERSION + ' starting...');
         Logger.info('📍 Page: ' + window.location.hostname + window.location.pathname);
-        if (IS_IFRAME) Logger.info('📦 Running inside IFRAME');
+
+        if (IS_PLACE_PAGE) Logger.info('📍 Detected: Place Page');
+        if (IS_TEMPLATE_PAGE) Logger.info('📍 Detected: Template Page (direct access)');
 
         // CASE 1: First time
         if (Cache.isFirstRun()) {
-            // Only download from parent page, iframe will use same cache
-            if (!IS_IFRAME) {
-                await firstTimeDownload();
-            } else {
-                // Iframe: Wait for parent to finish downloading
-                Logger.info('⏳ Waiting for parent page to download scripts...');
-                let waitCount = 0;
-                const waitForCache = setInterval(function() {
-                    waitCount++;
-                    if (!Cache.isFirstRun()) {
-                        clearInterval(waitForCache);
-                        const manifest = Cache.getManifest();
-                        if (manifest) loadScriptsFromCache(manifest);
-                    }
-                    if (waitCount > 50) { // 5 seconds max wait
-                        clearInterval(waitForCache);
-                        Logger.warn('⚠️ Timeout waiting for parent download');
-                    }
-                }, 100);
-            }
+            await firstTimeDownload();
             return;
         }
 
@@ -300,33 +432,39 @@
         const manifest = Cache.getManifest();
 
         if (!manifest) {
-            if (!IS_IFRAME) {
-                Logger.warn('⚠️ Cache corrupted. Re-downloading...');
-                await firstTimeDownload();
-            }
+            Logger.warn('⚠️ Cache corrupted. Re-downloading...');
+            await firstTimeDownload();
             return;
         }
 
         // Kill switch
         if (manifest.globalSettings && manifest.globalSettings.killSwitch) {
             Logger.warn('🛑 Kill switch is ON');
-            if (!IS_IFRAME) showStatusBadge('🛑 Scripts disabled by admin', 'error');
+            showStatusBadge('🛑 Scripts disabled by admin', 'error');
             return;
         }
 
-        // Load from cache INSTANTLY
+        // Load scripts for CURRENT page from cache
         loadScriptsFromCache(manifest);
 
-        // CASE 3: Check for updates (only from parent page, not iframe)
-        if (!IS_IFRAME) {
-            Logger.info('🔍 Checking for updates...');
-            checkForUpdates();
+        // If on place page, watch for template iframes
+        if (IS_PLACE_PAGE) {
+            Logger.info('👁️ Starting iframe watcher for template scripts...');
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', watchForIframes);
+            } else {
+                watchForIframes();
+            }
         }
+
+        // Check for updates
+        Logger.info('🔍 Checking for updates...');
+        checkForUpdates();
     }
 
 
     // ╔══════════════════════════════════════════════════════════╗
-    // ║  LOAD FROM CACHE                                         ║
+    // ║  LOAD FROM CACHE (for current page only)                 ║
     // ╚══════════════════════════════════════════════════════════╝
 
     function loadScriptsFromCache(manifest) {
@@ -339,10 +477,17 @@
         let loaded = 0;
         let skipped = 0;
         let failed = 0;
+        let iframeScripts = 0;
 
         activeScripts.forEach(function (script) {
             if (!shouldRunOnCurrentPage(script.matchPatterns)) {
-                Logger.skip(script.name, 'URL mismatch');
+                // Check if it's a template script (will be loaded via iframe injection)
+                if (IS_PLACE_PAGE && shouldRunOnPage(script.matchPatterns, 'templates.geostudio.last-mile.amazon.dev')) {
+                    Logger.skip(script.name, 'will load in iframe');
+                    iframeScripts++;
+                } else {
+                    Logger.skip(script.name, 'URL mismatch');
+                }
                 skipped++;
                 return;
             }
@@ -360,7 +505,12 @@
             }
         });
 
-        Logger.info('🎉 Done! ✅ Loaded: ' + loaded + ' | ⏭️ Skipped: ' + skipped + ' (wrong page) | ❌ Failed: ' + failed);
+        let summary = '🎉 Done! ✅ Loaded: ' + loaded + ' | ⏭️ Skipped: ' + skipped;
+        if (iframeScripts > 0) {
+            summary += ' (' + iframeScripts + ' for iframe)';
+        }
+        summary += ' | ❌ Failed: ' + failed;
+        Logger.info(summary);
 
         if (manifest.announcement && manifest.announcement.length > 0) {
             Logger.info('📢 ' + manifest.announcement);
@@ -415,7 +565,13 @@
             removeLoadingOverlay();
 
             Logger.info('🎉 Setup complete! Loaded ' + loaded + ' scripts (v' + manifest.version + ')');
-            showStatusBadge('✅ GeoStudio Scripts installed! (' + loaded + ' scripts on this page)', 'success');
+            showStatusBadge('✅ GeoStudio Scripts installed! (' + loaded + ' scripts)', 'success');
+
+            // Start iframe watcher after first download
+            if (IS_PLACE_PAGE) {
+                Logger.info('👁️ Starting iframe watcher...');
+                watchForIframes();
+            }
 
         } catch (e) {
             Logger.error('❌ First time download failed: ' + e.message);
@@ -426,7 +582,7 @@
 
 
     // ╔══════════════════════════════════════════════════════════╗
-    // ║  CHECK FOR UPDATES (Only from parent page)               ║
+    // ║  CHECK FOR UPDATES                                       ║
     // ╚══════════════════════════════════════════════════════════╝
 
     async function checkForUpdates() {
@@ -499,7 +655,6 @@
             }
 
             removeLoadingOverlay();
-
             Logger.info('✅ Force update complete! ' + count + ' scripts (v' + manifest.version + ')');
             setTimeout(function () { location.reload(); }, 500);
 
@@ -512,62 +667,73 @@
 
 
     // ╔══════════════════════════════════════════════════════════╗
-    // ║  TAMPERMONKEY MENU (Only register on parent page)        ║
+    // ║  TAMPERMONKEY MENU                                       ║
     // ╚══════════════════════════════════════════════════════════╝
 
-    if (!IS_IFRAME) {
-        GM_registerMenuCommand('🔄 Force Update Scripts', function () {
-            if (confirm('Download latest scripts from GitHub?')) forceUpdate();
+    GM_registerMenuCommand('🔄 Force Update Scripts', function () {
+        if (confirm('Download latest scripts from GitHub?')) forceUpdate();
+    });
+
+    GM_registerMenuCommand('📋 Script Status', function () {
+        const manifest = Cache.getManifest();
+        if (!manifest) { alert('No scripts loaded yet.'); return; }
+
+        let s = '╔═══════════════════════════════════════╗\n';
+        s += '║   🔧 GeoStudio Scripts Status          ║\n';
+        s += '╚═══════════════════════════════════════╝\n\n';
+        s += '📦 Version: ' + Cache.getVersion() + '\n';
+        s += '🔧 Loader: v' + CONFIG.LOADER_VERSION + '\n';
+        s += '🛑 Kill Switch: ' + (manifest.globalSettings.killSwitch ? 'ON ⚠️' : 'OFF ✅') + '\n';
+        s += '📍 Current Page: ' + window.location.hostname + '\n';
+        s += '📦 Iframe Injection: ' + (IS_PLACE_PAGE ? 'Active ✅' : 'N/A') + '\n';
+        s += '🔄 Updates: Every manual page refresh\n';
+        s += '\n────── Scripts ──────\n\n';
+
+        manifest.scripts.forEach(function (sc) {
+            const cached = Cache.getScript(sc.file) ? '💾' : '⚠️';
+            const enabled = sc.enabled ? '✅' : '❌';
+            const matchesCurrent = shouldRunOnCurrentPage(sc.matchPatterns) ? '🟢' : '🔴';
+            const matchesIframe = shouldRunOnPage(sc.matchPatterns, 'templates.geostudio.last-mile.amazon.dev') ? '📦' : '';
+            s += enabled + ' ' + cached + ' ' + matchesCurrent + ' ' + matchesIframe + ' [P' + sc.priority + '] ' + sc.name + '\n';
+            s += '   📝 ' + sc.description + '\n';
+            s += '   🌐 ' + (sc.matchPatterns ? sc.matchPatterns.join(', ') : 'All pages') + '\n\n';
         });
 
-        GM_registerMenuCommand('📋 Script Status', function () {
-            const manifest = Cache.getManifest();
-            if (!manifest) { alert('No scripts loaded yet.'); return; }
+        s += '────── Legend ──────\n';
+        s += '✅/❌ = Enabled/Disabled\n';
+        s += '💾/⚠️ = Cached/Not cached\n';
+        s += '🟢/🔴 = Runs on this page / Not this page\n';
+        s += '📦 = Injected into template iframe\n';
 
-            let s = '╔═══════════════════════════════════════╗\n';
-            s += '║   🔧 GeoStudio Scripts Status          ║\n';
-            s += '╚═══════════════════════════════════════╝\n\n';
-            s += '📦 Version: ' + Cache.getVersion() + '\n';
-            s += '🔧 Loader: v' + CONFIG.LOADER_VERSION + '\n';
-            s += '🛑 Kill Switch: ' + (manifest.globalSettings.killSwitch ? 'ON ⚠️' : 'OFF ✅') + '\n';
-            s += '📍 Current Page: ' + window.location.hostname + '\n';
-            s += '🔄 Updates: Every manual page refresh\n';
-            s += '\n────── Scripts ──────\n\n';
+        alert(s);
+    });
 
-            manifest.scripts.forEach(function (sc) {
-                const cached = Cache.getScript(sc.file) ? '💾' : '⚠️';
-                const enabled = sc.enabled ? '✅' : '❌';
-                const matches = shouldRunOnCurrentPage(sc.matchPatterns) ? '🟢' : '🔴';
-                s += enabled + ' ' + cached + ' ' + matches + ' [P' + sc.priority + '] ' + sc.name + '\n';
-                s += '   📝 ' + sc.description + '\n';
-                s += '   🌐 ' + (sc.matchPatterns ? sc.matchPatterns.join(', ') : 'All pages') + '\n\n';
-            });
+    GM_registerMenuCommand('🗑️ Clear Cache & Redownload', function () {
+        if (confirm('Clear all cached scripts and redownload?')) {
+            Cache.clearAll();
+            location.reload();
+        }
+    });
 
-            s += '────── Legend ──────\n';
-            s += '✅/❌ = Enabled/Disabled\n';
-            s += '💾/⚠️ = Cached/Not cached\n';
-            s += '🟢/🔴 = Runs on this page / Not this page\n';
+    GM_registerMenuCommand('🐛 Toggle Debug Mode', function () {
+        CONFIG.DEBUG = !CONFIG.DEBUG;
+        GM_setValue('debugMode', CONFIG.DEBUG);
+        alert('Debug mode: ' + (CONFIG.DEBUG ? 'ON 🟢' : 'OFF 🔴') + '\nRefresh to see logs.');
+    });
 
-            alert(s);
-        });
-
-        GM_registerMenuCommand('🗑️ Clear Cache & Redownload', function () {
-            if (confirm('Clear all cached scripts and redownload?')) {
-                Cache.clearAll();
-                location.reload();
+    GM_registerMenuCommand('📦 Re-inject Iframe Scripts', function () {
+        Logger.info('📦 Re-injecting iframe scripts...');
+        const iframes = document.querySelectorAll('iframe');
+        iframes.forEach(function(iframe) {
+            if (iframe.src && iframe.src.includes('templates.geostudio.last-mile.amazon.dev')) {
+                loadScriptsIntoIframe(iframe);
             }
         });
+    });
 
-        GM_registerMenuCommand('🐛 Toggle Debug Mode', function () {
-            CONFIG.DEBUG = !CONFIG.DEBUG;
-            GM_setValue('debugMode', CONFIG.DEBUG);
-            alert('Debug mode: ' + (CONFIG.DEBUG ? 'ON 🟢' : 'OFF 🔴') + '\nRefresh to see logs.');
-        });
-
-        GM_registerMenuCommand('ℹ️ About', function () {
-            alert('🔧 GeoStudio Scripts Loader\n\nAuthor: kchandramani\nGitHub: github.com/kchandramani/amazon_scripts\nLoader: v' + CONFIG.LOADER_VERSION + '\nScripts: v' + Cache.getVersion() + '\nUpdates: Every manual page refresh\nIframe Support: ✅ Enabled');
-        });
-    }
+    GM_registerMenuCommand('ℹ️ About', function () {
+        alert('🔧 GeoStudio Scripts Loader\n\nAuthor: kchandramani\nGitHub: github.com/kchandramani/amazon_scripts\nLoader: v' + CONFIG.LOADER_VERSION + '\nScripts: v' + Cache.getVersion() + '\nUpdates: Every manual page refresh\nIframe Injection: ✅ Enabled');
+    });
 
 
     // ╔══════════════════════════════════════════════════════════╗
