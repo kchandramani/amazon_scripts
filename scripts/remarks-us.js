@@ -21,7 +21,7 @@
 
     const defaultOption = document.createElement('option');
     defaultOption.value = -1;
-    defaultOption.text = 'US Remarks';
+    defaultOption.text = 'New Remarks';
     selectList.appendChild(defaultOption);
 
     const options = [
