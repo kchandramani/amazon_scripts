@@ -4,7 +4,7 @@
     function createButton(label, left, action) {
         var button = document.createElement("button");
         button.innerHTML = label;
-        button.setAttribute('style', 'position: absolute; z-index: 2500; padding: 2px; left:' + left + '%; top: 1%; background-color: #CCCCCC; color: #000000; border: 5px solid #CCCCCC; border-radius: 8px; font-size: 14px; font-family: "Amazon Ember"; font-weight: bold; transition: background-color 0.3s, border-color 0.3s;');
+        button.setAttribute('style', 'position: absolute; z-index: 2500; padding: 2px; left:' + left + '%; top: 2%; background-color: #CCCCCC; color: #000000; border: 5px solid #CCCCCC; border-radius: 8px; font-size: 14px; font-family: "Amazon Ember"; font-weight: bold; transition: background-color 0.3s, border-color 0.3s;');
 
         button.addEventListener('click', async () => {
             try {
