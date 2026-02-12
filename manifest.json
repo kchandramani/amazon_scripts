@@ -1,5 +1,5 @@
 {
-    "version": "4.0.0",
+    "version": "4.2.0",
     "lastUpdated": "2025-01-15",
     "announcement": "",
     "globalSettings": {
@@ -36,8 +36,8 @@
             "file": "auto-dropdown-stf.js",
             "enabled": true,
             "priority": 4,
-            "description": "Auto select options for Save/Sync/NA scenarios",
-            "matchPatterns": ["templates.geostudio.last-mile.amazon.dev"]
+            "description": "Auto select options for Save/Sync/NA scenarios (Outlier template)",
+            "matchPatterns": ["templates.geostudio.last-mile.amazon.dev/outlier"]
         },
         {
             "name": "CaseType Observer & Auto-Click",
@@ -94,6 +94,14 @@
             "priority": 11,
             "description": "Filter deliveries by reason with toggle panel",
             "matchPatterns": ["geostudio.last-mile.amazon.dev/place"]
+        },
+        {
+            "name": "WW LIVE Autofill Bucket",
+            "file": "ww-live-autofill.js",
+            "enabled": true,
+            "priority": 12,
+            "description": "Auto select Sv-BD, Sv-RD, UTL, NAK etc (Live template)",
+            "matchPatterns": ["templates.geostudio.last-mile.amazon.dev/live"]
         }
     ]
 }
