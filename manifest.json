@@ -1,5 +1,5 @@
 {
-    "version": "1.0.1",
+    "version": "1.5.0",
     "lastUpdated": "2025-01-15",
     "announcement": "",
     "globalSettings": {
@@ -12,10 +12,8 @@
             "file": "z-mx.js",
             "enabled": true,
             "priority": 1,
-            "description": "Press Z to set Geofence to 50 Meter",
-            "matchPatterns": [
-                "geostudio.last-mile.amazon.dev/place"
-            ]
+            "description": "Press A for 25m, Press Z for 50m Geofence",
+            "matchPatterns": ["geostudio.last-mile.amazon.dev/place"]
         },
         {
             "name": "Middle Button Observer",
@@ -23,9 +21,7 @@
             "enabled": true,
             "priority": 2,
             "description": "Adds floating middle button to copy DP geocode to RE geocode",
-            "matchPatterns": [
-                "geostudio.last-mile.amazon.dev/place"
-            ]
+            "matchPatterns": ["geostudio.last-mile.amazon.dev/place"]
         },
         {
             "name": "Auto Dismiss Validation Alert",
@@ -33,19 +29,15 @@
             "enabled": true,
             "priority": 3,
             "description": "Automatically dismisses Validation Failed alerts",
-            "matchPatterns": [
-                "na.geostudio.last-mile.amazon.dev/place"
-            ]
+            "matchPatterns": ["na.geostudio.last-mile.amazon.dev/place"]
         },
         {
             "name": "Auto Drop Down Selection STF",
             "file": "auto-dropdown-stf.js",
             "enabled": true,
             "priority": 4,
-            "description": "Auto select options for Save/Sync/NA/NAK scenarios",
-            "matchPatterns": [
-                "templates.geostudio.last-mile.amazon.dev"
-            ]
+            "description": "Auto select options for Save/Sync/NA scenarios",
+            "matchPatterns": ["templates.geostudio.last-mile.amazon.dev"]
         },
         {
             "name": "CaseType Observer & Auto-Click",
@@ -53,9 +45,7 @@
             "enabled": true,
             "priority": 5,
             "description": "Observes CaseType changes, displays info, auto-clicks buttons",
-            "matchPatterns": [
-                "na.geostudio.last-mile.amazon.dev/place"
-            ]
+            "matchPatterns": ["na.geostudio.last-mile.amazon.dev/place"]
         },
         {
             "name": "Past Deliveries & Attribute Dropdown",
@@ -63,59 +53,47 @@
             "enabled": true,
             "priority": 6,
             "description": "Press Q to click Past Deliveries and open Attribute dropdown",
-            "matchPatterns": [
-                "geostudio.last-mile.amazon.dev/place"
-            ]
+            "matchPatterns": ["geostudio.last-mile.amazon.dev/place"]
         },
         {
             "name": "GS 2.0 Remarks - US",
             "file": "remarks-us.js",
             "enabled": true,
             "priority": 7,
-            "description": "US specific remarks dropdown for GeoStudio templates",
-            "matchPatterns": [
-                "templates.geostudio.last-mile.amazon.dev"
-            ]
+            "description": "US specific remarks dropdown",
+            "matchPatterns": ["templates.geostudio.last-mile.amazon.dev"]
         },
         {
             "name": "GS 2.0 Remarks - General",
             "file": "remarks-general.js",
             "enabled": true,
             "priority": 8,
-            "description": "General remarks dropdown for GeoStudio templates",
-            "matchPatterns": [
-                "templates.geostudio.last-mile.amazon.dev"
-            ]
+            "description": "General remarks dropdown",
+            "matchPatterns": ["templates.geostudio.last-mile.amazon.dev"]
         },
         {
             "name": "Left Paste Buttons",
             "file": "left-paste-buttons.js",
             "enabled": true,
             "priority": 9,
-            "description": "Adds paste buttons to left of DP and RE geocode inputs",
-            "matchPatterns": [
-                "geostudio.last-mile.amazon.dev/place"
-            ]
+            "description": "Adds paste buttons to left of geocode inputs",
+            "matchPatterns": ["geostudio.last-mile.amazon.dev/place"]
         },
         {
             "name": "Right Copy Buttons",
             "file": "right-copy-buttons.js",
             "enabled": true,
             "priority": 10,
-            "description": "Adds copy buttons to right of DP and RE geocode inputs",
-            "matchPatterns": [
-                "geostudio.last-mile.amazon.dev/place"
-            ]
+            "description": "Adds copy buttons to right of geocode inputs",
+            "matchPatterns": ["geostudio.last-mile.amazon.dev/place"]
         },
         {
             "name": "Delivery Reason Filter",
             "file": "delivery-reason-filter.js",
             "enabled": true,
             "priority": 11,
-            "description": "Floating panel to filter and toggle deliveries by reason",
-            "matchPatterns": [
-                "geostudio.last-mile.amazon.dev/place"
-            ]
+            "description": "Filter deliveries by reason with toggle panel",
+            "matchPatterns": ["geostudio.last-mile.amazon.dev/place"]
         }
     ]
 }
