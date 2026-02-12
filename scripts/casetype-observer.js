@@ -205,7 +205,7 @@
     function isUSAddress(text) {
         if (!text) return false;
         const parts = text.split(',').map(part => part.trim().toUpperCase());
-        return parts.some(part => part === 'US' || part === 'USA' || part === 'UNITED STATES' || === 'MX' || part === 'BR' || part === 'CA');
+        return parts.some(part => part === 'US' || part === 'USA' || part === 'UNITED STATES');
     }
 
     function updateAddressDisplay(text) {
@@ -220,9 +220,7 @@
             addressDisplay.style.display = 'block';
             addressFound = true;
         } else if (text) {
-            
-        
-            contentDiv.innerHTML = '<strong style="font-size:15px;">Address:</strong><br><br>Not a valid Address';
+            contentDiv.innerHTML = '<strong style="font-size:15px;">Address:</strong><br><br>Hint and PDL are on the way';
             addressDisplay.style.backgroundColor = 'rgba(100,100,100,0.8)';
             addressDisplay.style.display = 'block';
             addressFound = true;
