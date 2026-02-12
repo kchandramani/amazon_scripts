@@ -1,3 +1,5 @@
+// CaseType Text Observer and Display with Auto-Click
+
 (function() {
     'use strict';
 
@@ -212,8 +214,7 @@
                     while (container && attempts < 5) {
                         const valueEl = container.querySelector('[mdn-select-value]');
                         if (valueEl) {
-                            const val = valueEl.textContent.trim();
-                            return val;
+                            return valueEl.textContent.trim();
                         }
                         container = container.parentElement;
                         attempts++;
@@ -340,15 +341,19 @@
         }
     }
 
-    function updateDisplay(text) {
+    function updateDisplay(text, source) {
         if (!floatingDisplay) createFloatingDisplay();
         if (text) {
-            floatingDisplay.style.backgroundColor = 'rgba(255,0,0,0.8)';
+            if (source === 'source1') {
+                floatingDisplay.style.backgroundColor = 'rgba(255,0,0,0.8)';
+            } else {
+                floatingDisplay.style.backgroundColor = 'rgba(180,100,0,0.8)';
+            }
             floatingDisplay.textContent = text;
             textFound = true;
             setTimeout(clickTargetButton, 100);
             setTimeout(() => { checkForPDLAndHint(0); }, 100);
-            if (text.includes('source1')) {
+            if (source === 'source1') {
                 setTimeout(() => { clickSharedDeliveryArea(0); }, 100);
             }
         } else {
@@ -364,16 +369,31 @@
         isChecking = true;
         const elements = document.querySelectorAll('.css-wncc9b');
         let found = false;
+
+        // Priority 1: Look for source1
         elements.forEach(element => {
+            if (found) return;
             const text = element.textContent;
             if (text && text.includes('source1')) {
                 found = true;
-                updateDisplay(text);
+                updateDisplay(text, 'source1');
             }
         });
 
+        // Priority 2: If source1 not found, look for casetype
         if (!found) {
-            updateDisplay(null);
+            elements.forEach(element => {
+                if (found) return;
+                const text = element.textContent;
+                if (text && text.includes('casetype')) {
+                    found = true;
+                    updateDisplay(text, 'casetype');
+                }
+            });
+        }
+
+        if (!found) {
+            updateDisplay(null, null);
         }
         isChecking = false;
     }
@@ -401,7 +421,7 @@
     }
 
     function initialize() {
-        console.log('Initializing CaseType Observer v1.0...');
+        console.log('Initializing CaseType Observer v1.1...');
 
         createFloatingDisplay();
         createAddressDisplay();
