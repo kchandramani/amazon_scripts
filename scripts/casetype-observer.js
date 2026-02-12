@@ -221,9 +221,11 @@
             addressFound = true;
         } else if (text) {
             
-            contentDiv.innerHTML = ''; // Clear the content
-            addressDisplay.style.display = 'none'; // Hide it instead of showing
-            addressFound = false;
+        
+            contentDiv.innerHTML = '<strong style="font-size:15px;">Address:</strong><br><br>Not a valid Address';
+            addressDisplay.style.backgroundColor = 'rgba(100,100,100,0.8)';
+            addressDisplay.style.display = 'block';
+            addressFound = true;
         } else {
             contentDiv.innerHTML = '<strong style="font-size:15px;">Address:</strong><br><br>Not Found';
             addressDisplay.style.backgroundColor = 'rgba(100,100,100,0.8)';
