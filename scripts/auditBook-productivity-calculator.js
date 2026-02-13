@@ -3,7 +3,7 @@
 
     const CASE_TIME_RANGE_MIN = 4;
     const CASE_TIME_RANGE_MAX = 15;
-    const DEFAULT_CASE_TIME_ORDER = [12, 5, 8, 15, 4, 6, 7, 9, 10, 11, 13, 14];
+    const DEFAULT_CASE_TIME_ORDER = [6, 5, 8, 15, 4, 6, 7, 10, 11, 12, 13, 14];
     const CASE_TIME_ORDER_KEY = 'productivityPanelCaseTimeOrder';
     const WORKDAY_MINUTES = 480;
     const PRODUCTIVITY_TREND_MIN_INTERVAL = 45;
