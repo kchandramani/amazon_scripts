@@ -24,7 +24,7 @@
         if (addressDisplay) return;
         addressDisplay = document.createElement('div');
         addressDisplay.id = 'addressDisplay';
-        addressDisplay.style.cssText = 'position:fixed;top:70px;right:500px;padding:15px;padding-top:25px;background-color:rgba(255,255,255,0.85);color:#111;z-index:9999;border-radius:5px;max-width:400px;word-wrap:break-word;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;line-height:1.6;display:none;border:1px solid rgba(0,0,0,0.15);box-shadow:0 4px 15px rgba(0,0,0,0.15);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);';
+        addressDisplay.style.cssText = 'position:fixed;top:70px;right:500px;padding:15px;padding-top:25px;background-color:rgba(255,255,255,0.85);color:#111;z-index:9999;border-radius:5px;max-width:400px;word-wrap:break-word;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;line-height:1.6;display:none;border:2px solid rgba(255,0,0,0.7);box-shadow:0 4px 15px rgba(0,0,0,0.15);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);';
 
         const closeButton = document.createElement('button');
         closeButton.id = 'addressCloseBtn';
@@ -306,7 +306,7 @@
             html += '<span style="font-size:12px;color:#cc0000;">Not Set</span>';
         }
 
-        html += '<br>';
+        html += '<div style="margin-top:6px;"></div>';
 
         html += '<strong style="font-size:13px;text-decoration:underline;color:#111;">Delivery Hint:</strong><br>';
         if (hintValue) {
@@ -319,10 +319,10 @@
 
         if ((pdlValue && pdlValue !== 'Select safe place type') || hintValue) {
             addressDisplay.style.backgroundColor = 'rgba(255,255,255,0.85)';
-            addressDisplay.style.borderColor = 'rgba(0,100,0,0.4)';
+            addressDisplay.style.borderColor = 'rgba(255,0,0,0.7)';
         } else {
             addressDisplay.style.backgroundColor = 'rgba(255,255,255,0.75)';
-            addressDisplay.style.borderColor = 'rgba(0,0,0,0.2)';
+            addressDisplay.style.borderColor = 'rgba(255,0,0,0.5)';
         }
 
         addressDisplay.style.display = 'block';
@@ -418,6 +418,7 @@
                 contentDiv.innerHTML = '';
             }
             addressDisplay.style.backgroundColor = 'rgba(255,255,255,0.85)';
+            addressDisplay.style.borderColor = 'rgba(255,0,0,0.7)';
             addressDisplay.style.display = 'none';
         }
     }
