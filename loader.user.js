@@ -10,7 +10,6 @@
 // @match        https://na.templates.geostudio.last-mile.amazon.dev/*
 // @match        https://eu.templates.geostudio.last-mile.amazon.dev/*
 // @match        https://fe.templates.geostudio.last-mile.amazon.dev/*
-// @match        https://auditbook-na.corp.amazon.com/searchTimeSheet*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
