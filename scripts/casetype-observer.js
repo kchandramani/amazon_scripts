@@ -24,14 +24,14 @@
         if (addressDisplay) return;
         addressDisplay = document.createElement('div');
         addressDisplay.id = 'addressDisplay';
-        addressDisplay.style.cssText = 'position:fixed;top:70px;right:500px;padding:15px;padding-top:25px;background-color:rgba(0,100,0,0.8);color:white;z-index:9999;border-radius:5px;max-width:400px;word-wrap:break-word;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;line-height:1.6;display:none;';
+        addressDisplay.style.cssText = 'position:fixed;top:70px;right:500px;padding:15px;padding-top:25px;background-color:rgba(255,255,255,0.85);color:#111;z-index:9999;border-radius:5px;max-width:400px;word-wrap:break-word;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;line-height:1.6;display:none;border:1px solid rgba(0,0,0,0.15);box-shadow:0 4px 15px rgba(0,0,0,0.15);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);';
 
         const closeButton = document.createElement('button');
         closeButton.id = 'addressCloseBtn';
         closeButton.innerHTML = '&times;';
-        closeButton.style.cssText = 'position:absolute;top:5px;right:5px;width:20px;height:20px;border:none;background-color:rgba(255,255,255,0.3);color:white;font-size:16px;font-weight:bold;cursor:pointer;border-radius:3px;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;';
-        closeButton.addEventListener('mouseenter', () => { closeButton.style.backgroundColor = 'rgba(255,0,0,0.7)'; });
-        closeButton.addEventListener('mouseleave', () => { closeButton.style.backgroundColor = 'rgba(255,255,255,0.3)'; });
+        closeButton.style.cssText = 'position:absolute;top:5px;right:5px;width:20px;height:20px;border:none;background-color:rgba(0,0,0,0.15);color:#333;font-size:16px;font-weight:bold;cursor:pointer;border-radius:3px;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;';
+        closeButton.addEventListener('mouseenter', () => { closeButton.style.backgroundColor = 'rgba(255,0,0,0.7)'; closeButton.style.color = '#fff'; });
+        closeButton.addEventListener('mouseleave', () => { closeButton.style.backgroundColor = 'rgba(0,0,0,0.15)'; closeButton.style.color = '#333'; });
         closeButton.addEventListener('click', () => { addressDisplay.style.display = 'none'; });
 
         const contentDiv = document.createElement('div');
@@ -299,28 +299,30 @@
 
         let html = '';
 
-        html += '<strong style="font-size:13px;text-decoration:underline;">PDL:</strong><br>';
+        html += '<strong style="font-size:13px;text-decoration:underline;color:#111;">PDL:</strong><br>';
         if (pdlValue && pdlValue !== 'Select safe place type') {
-            html += '<span style="font-size:12px;">' + pdlValue + '</span>';
+            html += '<span style="font-size:12px;color:#222;">' + pdlValue + '</span>';
         } else {
-            html += '<span style="font-size:12px;color:#ffcccc;">Not Set</span>';
+            html += '<span style="font-size:12px;color:#cc0000;">Not Set</span>';
         }
 
-        html += '<br><br>';
+        html += '<br>';
 
-        html += '<strong style="font-size:13px;text-decoration:underline;">Delivery Hint:</strong><br>';
+        html += '<strong style="font-size:13px;text-decoration:underline;color:#111;">Delivery Hint:</strong><br>';
         if (hintValue) {
-            html += '<span style="font-size:12px;">' + hintValue + '</span>';
+            html += '<span style="font-size:12px;color:#222;">' + hintValue + '</span>';
         } else {
-            html += '<span style="font-size:12px;color:#ffcccc;">Not Found</span>';
+            html += '<span style="font-size:12px;color:#cc0000;">Not Found</span>';
         }
 
         contentDiv.innerHTML = html;
 
         if ((pdlValue && pdlValue !== 'Select safe place type') || hintValue) {
-            addressDisplay.style.backgroundColor = 'rgba(0,100,0,0.8)';
+            addressDisplay.style.backgroundColor = 'rgba(255,255,255,0.85)';
+            addressDisplay.style.borderColor = 'rgba(0,100,0,0.4)';
         } else {
-            addressDisplay.style.backgroundColor = 'rgba(100,100,100,0.8)';
+            addressDisplay.style.backgroundColor = 'rgba(255,255,255,0.75)';
+            addressDisplay.style.borderColor = 'rgba(0,0,0,0.2)';
         }
 
         addressDisplay.style.display = 'block';
@@ -415,7 +417,7 @@
             if (contentDiv) {
                 contentDiv.innerHTML = '';
             }
-            addressDisplay.style.backgroundColor = 'rgba(0,0,0,0.8)';
+            addressDisplay.style.backgroundColor = 'rgba(255,255,255,0.85)';
             addressDisplay.style.display = 'none';
         }
     }
