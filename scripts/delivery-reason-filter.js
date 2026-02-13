@@ -1,6 +1,3 @@
-// Delivery Reason Filter
-// Adds a floating panel to filter deliveries by reason
-
 (function () {
     'use strict';
 
@@ -78,6 +75,7 @@
         const acc = findAccordion();
         if (!acc) return;
         const rect = acc.getBoundingClientRect();
+        //el.style.top = rect.top + 'px';
         el.style.top = (rect.top + 15) + 'px';
         el.style.left = (rect.right + 10) + 'px';
         el.style.right = 'auto';
@@ -396,7 +394,6 @@
         reasonStates = {};
         reasonBlocksMap = {};
         wasDragged = false;
-        wasShowingDeliveries = false;              // ← reset so next appearance triggers a fresh build
         console.log('[DeliveryFilter] Deliveries gone — cleaned up');
     }
 
@@ -406,6 +403,7 @@
         const blocks = getDeliveryBlocks();
         const hasDeliveries = blocks.length > 0;
 
+        // Keep panel aligned to accordion (unless user dragged it)
         if (panel && panel.style.display !== 'none') {
             positionNextToAccordion(panel);
         }
@@ -434,20 +432,6 @@
             cleanup();
         }
     }
-
-    /* ── submit-btn listener (delegated) ─────────── */
-    //   Works even if the button is added to the DOM later.
-    //   Matches: id="submit-btn"  OR  class="submit-btn"  OR  data-testid="submit-btn"
-
-    document.addEventListener('click', function (e) {
-        const submitBtn = e.target.closest(
-            '#submit-btn, .submit-btn, [data-testid="submit-btn"]'
-        );
-        if (submitBtn) {
-            console.log('[DeliveryFilter] submit-btn clicked — performing immediate cleanup');
-            cleanup();
-        }
-    }, true);                                      // ← capture phase so it fires before any stopPropagation
 
     // ── Start polling ──
     setInterval(checkDeliveries, 300);
