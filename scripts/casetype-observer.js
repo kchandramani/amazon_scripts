@@ -360,6 +360,7 @@
         }
     }
 
+    // ==================== FIX APPLIED HERE ====================
     function checkForCaseType() {
         if (textFound || isChecking) return;
         isChecking = true;
@@ -369,7 +370,7 @@
         elements.forEach(element => {
             if (found) return;
             const text = element.textContent;
-            if (text && text.includes('source1')) {
+            if (text && text.toLowerCase().includes('source1')) {
                 found = true;
                 updateDisplay(text, 'source1');
             }
@@ -379,7 +380,7 @@
             elements.forEach(element => {
                 if (found) return;
                 const text = element.textContent;
-                if (text && text.includes('casetype')) {
+                if (text && text.toLowerCase().includes('casetype')) {
                     found = true;
                     updateDisplay(text, 'casetype');
                 }
@@ -769,7 +770,7 @@
 
     // ==================== INITIALIZE ====================
     function initialize() {
-        console.log('Initializing CaseType Observer + GS Panel v2.3...');
+        console.log('Initializing CaseType Observer + GS Panel v2.4 (case-fix)...');
 
         createFloatingDisplay();
 
