@@ -1,3 +1,14 @@
+// ==UserScript==
+// @name         DH PDL
+// @namespace    http://tampermonkey.net/
+// @version      2026-02-19
+// @description  CaseType Observer + GS Panel (DH & PDL via Intercept) + BDP Source + Bing Translate
+// @author       You
+// @match        https://na.geostudio.last-mile.amazon.dev/place
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=amazon.dev
+// @grant        none
+// ==/UserScript==
+
 (function () {
   'use strict';
 
@@ -35,15 +46,15 @@
 
   // ==================== COLOR / LABEL MAPS ====================
   const BDP_COLORS = [
-    { match: 'PBG', color: 'rgba(233, 69, 96, 0.9)' },
-    { match: 'MANUAL', color: 'rgba(14, 173, 105, 0.9)' },
-    { match: 'AID_MANUAL', color: 'rgba(14, 173, 105, 0.9)' },
-    { match: 'LIVE_GLS', color: 'rgba(33, 150, 243, 0.9)' },
-    { match: 'GLS_ST_DIST', color: 'rgba(33, 150, 243, 0.9)' },
-    { match: 'NESO', color: 'rgba(123, 104, 238, 0.9)' },
-    { match: 'SCAN', color: 'rgba(0, 188, 212, 0.9)' },
-    { match: 'GPS', color: 'rgba(0, 188, 212, 0.9)' },
-    { match: 'LEARNABLE', color: 'rgba(0, 188, 212, 0.9)' },
+    { match: 'PBG',        color: 'rgba(233, 69, 96, 0.9)'  },
+    { match: 'MANUAL',     color: 'rgba(14, 173, 105, 0.9)'  },
+    { match: 'AID_MANUAL', color: 'rgba(14, 173, 105, 0.9)'  },
+    { match: 'LIVE_GLS',   color: 'rgba(33, 150, 243, 0.9)'  },
+    { match: 'GLS_ST_DIST',color: 'rgba(33, 150, 243, 0.9)'  },
+    { match: 'NESO',       color: 'rgba(123, 104, 238, 0.9)' },
+    { match: 'SCAN',       color: 'rgba(0, 188, 212, 0.9)'   },
+    { match: 'GPS',        color: 'rgba(0, 188, 212, 0.9)'   },
+    { match: 'LEARNABLE',  color: 'rgba(0, 188, 212, 0.9)'   },
   ];
 
   const SOURCE_LABELS = [
@@ -158,7 +169,9 @@
     .gs-src.transporter { background: #5c6bc0; color: #fff; }
     .gs-src.other       { background: #607d8b; color: #fff; }
 
-    .gs-entry-num { font-size: 10px; color: #00d4ff; font-weight: 600; margin-bottom: 3px; }
+    .gs-entry-num {
+      font-size: 10px; color: #00d4ff; font-weight: 600; margin-bottom: 3px;
+    }
     .gs-latest-badge {
       display: inline-block; background: #e94560; color: #fff;
       font-size: 9px; font-weight: 700; padding: 1px 5px;
@@ -223,7 +236,11 @@
       const parsed = JSON.parse(val);
       if (parsed.Locations_ && Array.isArray(parsed.Locations_)) {
         return parsed.Locations_.map((loc) => {
-          const place = loc.SafePlaceLocation_ || loc.MailroomLocation_ || loc.NeighborLocation_ || 'Unknown';
+          const place =
+            loc.SafePlaceLocation_ ||
+            loc.MailroomLocation_ ||
+            loc.NeighborLocation_ ||
+            'Unknown';
           return '📍 ' + place.replace(/_/g, ' ');
         }).join(', ');
       }
@@ -246,7 +263,9 @@
   function walkTextNodes(root, match) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode: (node) =>
-        node.nodeValue?.trim().includes(match) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
+        node.nodeValue?.trim().includes(match)
+          ? NodeFilter.FILTER_ACCEPT
+          : NodeFilter.FILTER_REJECT,
     });
     const results = [];
     while (walker.nextNode()) results.push(walker.currentNode);
@@ -262,11 +281,27 @@
     return null;
   }
 
+  // ==================== COLLECT ENTRIES (CORE FIX) ====================
+  // Priority:
+  //   1. aidDetails → if has entries, use ONLY these
+  //   2. authoritativeValue → fallback when aidDetails is empty
+  //   3. Never use pidSummary
+  function collectEntries(attr) {
+    if (attr.aidDetails && attr.aidDetails.length > 0) {
+      return [...attr.aidDetails];
+    }
+    if (attr.authoritativeValue) {
+      return [attr.authoritativeValue];
+    }
+    return [];
+  }
+
   // ==================== NETWORK INTERCEPTORS ====================
   function setupInterceptors() {
     if (state.interceptorsSetup) return;
     state.interceptorsSetup = true;
 
+    // -- Fetch intercept --
     const origFetch = window.fetch;
     window.fetch = async function (...args) {
       const res = await origFetch.apply(this, args);
@@ -284,6 +319,7 @@
       return res;
     };
 
+    // -- XHR intercept --
     const origOpen = XMLHttpRequest.prototype.open;
     const origSend = XMLHttpRequest.prototype.send;
 
@@ -298,8 +334,9 @@
           const url = this._interceptUrl;
           if (!url) return;
           const data = JSON.parse(this.responseText);
-
-          if (url.includes(API.ADDRESS_INFO)) handleAddressInfoReceived(data);
+          if (url.includes(API.ADDRESS_INFO)) {
+            handleAddressInfoReceived(data);
+          }
           if (url.includes(API.ATTRIBUTES) && state.waitingForData && data?.attributeSummaryList) {
             handleAttributesDataReceived(data);
           }
@@ -316,11 +353,11 @@
     if (!data) return;
     const bdp = data.geospatialData?.bestDeliveryPoint;
 
-    state.bdp.source = bdp?.source || null;
+    state.bdp.source     = bdp?.source || null;
     state.bdp.confidence = bdp?.confidence || null;
-    state.bdp.scope = bdp?.scope ?? null;
-    state.bdp.tolerance = bdp?.tolerance ?? null;
-    state.bdp.received = true;
+    state.bdp.scope      = bdp?.scope ?? null;
+    state.bdp.tolerance  = bdp?.tolerance ?? null;
+    state.bdp.received   = true;
 
     console.log('[GS Panel] BDP:', state.bdp.source || 'none');
     if (state.caseTypeDetected) showFloatingDisplay();
@@ -335,21 +372,19 @@
       state.dataTimeoutId = null;
     }
 
-    const dhEntries = [];
+    const dhEntries  = [];
     const pdlEntries = [];
 
-    // *** FIX: Only collect from aidDetails — NOT pidSummary or authoritativeValue ***
+    // Collect DH and PDL using proper priority logic
     for (const attr of data.attributeSummaryList) {
-      if (!attr.aidDetails || attr.aidDetails.length === 0) continue;
-
       if (attr.attributeName === 'DELIVERY_HINT') {
-        dhEntries.push(...attr.aidDetails);
+        dhEntries.push(...collectEntries(attr));
       } else if (attr.attributeName === 'PREFERRED_DELIVERY_LOCATIONS') {
-        pdlEntries.push(...attr.aidDetails);
+        pdlEntries.push(...collectEntries(attr));
       }
     }
 
-    const dh = dedup(dhEntries).sort(sortByTimeDesc);
+    const dh  = dedup(dhEntries).sort(sortByTimeDesc);
     const pdl = dedup(pdlEntries).sort(sortByTimeDesc);
 
     renderPanel(dh, pdl[0] || null);
@@ -447,7 +482,11 @@
     for (const sel of selectors) {
       try {
         const btn = $(sel);
-        if (btn) { btn.click(); state.buttonClicked = true; return; }
+        if (btn) {
+          btn.click();
+          state.buttonClicked = true;
+          return;
+        }
       } catch { /* ignore */ }
     }
     setTimeout(clickTargetButton, 100);
@@ -456,19 +495,22 @@
   function clickSharedDeliveryArea(retry) {
     if (state.sharedDeliveryClicked || retry >= MAX_RETRIES) return;
 
-    const accordion = findByText('.MuiAccordion-root.css-sqxyby', 'Shared Delivery Area')
-      || findByText('div[class*="MuiAccordion"], div[class*="css-sqxyby"]', 'Shared Delivery Area');
+    // Strategy 1: MUI accordion
+    const accordion =
+      findByText('.MuiAccordion-root.css-sqxyby', 'Shared Delivery Area') ||
+      findByText('div[class*="MuiAccordion"], div[class*="css-sqxyby"]', 'Shared Delivery Area');
 
     if (accordion) {
-      const clickable = accordion.querySelector(
-        '.MuiAccordionSummary-root, .MuiButtonBase-root, [role="button"]'
-      ) || accordion;
+      const clickable =
+        accordion.querySelector('.MuiAccordionSummary-root, .MuiButtonBase-root, [role="button"]') ||
+        accordion;
       clickable.click();
       state.sharedDeliveryClicked = true;
       setTimeout(() => clickEditDetails(0), 100);
       return;
     }
 
+    // Strategy 2: text node walk
     const textNodes = walkTextNodes(document.body, 'Shared Delivery Area');
     for (const node of textNodes) {
       const ancestor = findAncestor(node.parentElement, (el) =>
@@ -477,9 +519,9 @@
         el.getAttribute('role') === 'button'
       );
       if (ancestor) {
-        const target = ancestor.querySelector(
-          '.MuiAccordionSummary-root, .MuiButtonBase-root, [role="button"]'
-        ) || ancestor;
+        const target =
+          ancestor.querySelector('.MuiAccordionSummary-root, .MuiButtonBase-root, [role="button"]') ||
+          ancestor;
         target.click();
         state.sharedDeliveryClicked = true;
         setTimeout(() => clickEditDetails(0), 100);
@@ -493,24 +535,33 @@
   function clickEditDetails(retry) {
     if (state.editDetailsClicked || retry >= MAX_RETRIES) return;
 
+    // Strategy 1: specific class
     for (const el of $$('.css-1lnv98w')) {
       if (el.textContent?.trim() === 'Edit Details') {
-        el.click(); state.editDetailsClicked = true; return;
+        el.click();
+        state.editDetailsClicked = true;
+        return;
       }
     }
 
+    // Strategy 2: any clickable
     for (const el of $$('button, a, span, div, p, [role="button"]')) {
       if (el.textContent?.trim() === 'Edit Details') {
-        el.click(); state.editDetailsClicked = true; return;
+        el.click();
+        state.editDetailsClicked = true;
+        return;
       }
     }
 
+    // Strategy 3: text node walk
     const textNodes = walkTextNodes(document.body, 'Edit Details');
     for (const node of textNodes) {
       if (node.nodeValue?.trim() === 'Edit Details' && node.parentElement) {
-        const ancestor = findAncestor(node.parentElement, (el) =>
-          el.classList?.contains('css-1lnv98w')
-        , 5);
+        const ancestor = findAncestor(
+          node.parentElement,
+          (el) => el.classList?.contains('css-1lnv98w'),
+          5
+        );
         (ancestor || node.parentElement).click();
         state.editDetailsClicked = true;
         return;
@@ -522,15 +573,19 @@
 
   // ==================== ATTRIBUTES ACCORDION ====================
   function findAttributesAccordion() {
-    return findByText('.MuiButtonBase-root.MuiAccordionSummary-root[role="button"]', 'Attributes sources')
-      || findByText('[role="button"]', 'Attributes sources');
+    return (
+      findByText('.MuiButtonBase-root.MuiAccordionSummary-root[role="button"]', 'Attributes sources') ||
+      findByText('[role="button"]', 'Attributes sources')
+    );
   }
 
   function openAttributesAccordion(retry) {
     if (retry >= MAX_RETRIES) {
       console.log('[GS Panel] Accordion not found');
       const body = $('#gs-body');
-      if (body) body.innerHTML = '<div class="gs-loading" style="color:#e94560">❌ "Attributes sources" accordion not found</div>';
+      if (body) {
+        body.innerHTML = '<div class="gs-loading" style="color:#e94560">❌ "Attributes sources" accordion not found</div>';
+      }
       return;
     }
 
@@ -557,7 +612,9 @@
       state.waitingForData = false;
       console.log('[GS Panel] Timeout — no data received');
       const body = $('#gs-body');
-      if (body) body.innerHTML = '<div class="gs-loading" style="color:#e94560">❌ Timeout — No data received.</div>';
+      if (body) {
+        body.innerHTML = '<div class="gs-loading" style="color:#e94560">❌ Timeout — No data received.</div>';
+      }
       closeAttributesAccordion();
     }, DATA_TIMEOUT_MS);
   }
@@ -577,8 +634,8 @@
 
     let html = '';
 
-    // Delivery Hints (AID only)
-    html += `<div class="gs-block dh">`;
+    // ---- Delivery Hints ----
+    html += '<div class="gs-block dh">';
     html += `<div class="gs-label">🔴 Delivery Hints (${dhEntries.length})</div>`;
     if (dhEntries.length) {
       dhEntries.forEach((entry, i) => {
@@ -587,7 +644,9 @@
         if (i > 0) html += '<hr class="gs-entry-divider">';
         html += `
           <div class="gs-entry">
-            <div class="gs-entry-num">#${i + 1}${i === 0 ? '<span class="gs-latest-badge">LATEST</span>' : ''}</div>
+            <div class="gs-entry-num">
+              #${i + 1}${i === 0 ? '<span class="gs-latest-badge">LATEST</span>' : ''}
+            </div>
             <div class="gs-val">${val}</div>
             <div class="gs-meta">
               ${srcBadge(entry.attributeSrc)}
@@ -602,7 +661,7 @@
     }
     html += '</div>';
 
-    // Preferred Delivery Location (AID only — latest)
+    // ---- Preferred Delivery Location (latest only) ----
     html += '<div class="gs-block pdl">';
     html += '<div class="gs-label">🟢 Preferred Delivery Location</div>';
     if (latestPDL) {
@@ -622,6 +681,7 @@
 
     body.innerHTML = html;
 
+    // Attach translate handlers
     body.querySelectorAll('.gs-translate-btn').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -686,7 +746,10 @@
 
     let retries = 0;
     const interval = setInterval(() => {
-      if (state.userDragged || ++retries > 10) { clearInterval(interval); return; }
+      if (state.userDragged || ++retries > 10) {
+        clearInterval(interval);
+        return;
+      }
       setInitialPosition();
     }, 1000);
 
@@ -696,7 +759,8 @@
 
     panel.querySelector('#gs-min').addEventListener('click', () => {
       panel.classList.toggle('minimized');
-      panel.querySelector('#gs-min').textContent = panel.classList.contains('minimized') ? '▢' : '—';
+      panel.querySelector('#gs-min').textContent =
+        panel.classList.contains('minimized') ? '▢' : '—';
     });
 
     state.gsPanelCreated = true;
@@ -729,7 +793,9 @@
       panel.style.top = Math.max(0, Math.min(startTop + e.clientY - startY, maxY)) + 'px';
     });
 
-    document.addEventListener('mouseup', () => { dragging = false; });
+    document.addEventListener('mouseup', () => {
+      dragging = false;
+    });
   }
 
   // ==================== TRIGGER / RESET ====================
@@ -784,7 +850,9 @@
     setupInterceptors();
     createFloatingDisplay();
 
-    setInterval(() => { if (!state.textFound) checkForCaseType(); }, 100);
+    setInterval(() => {
+      if (!state.textFound) checkForCaseType();
+    }, 100);
 
     document.addEventListener('click', (e) => {
       if (e.target?.id === 'submit-btn') setTimeout(resetState, 100);
