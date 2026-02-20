@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         DH PDL
 // @namespace    http://tampermonkey.net/
-// @version      2026-02-19
-// @description  CaseType Observer + GS Panel (DH & PDL via Intercept) + BDP Source + Bing Translate
+// @version      2026-02-20
+// @description  CaseType Observer + GS Panel (DH & PDL via Intercept) + BDP Source + Bing Translate + Memory Optimized
 // @author       You
 // @match        https://na.geostudio.last-mile.amazon.dev/place
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=amazon.dev
@@ -23,7 +23,7 @@
 
   // ==================== STATE ====================
   const state = {
-    floatingDisplay: null,
+    active: false,
     textFound: false,
     isChecking: false,
     buttonClicked: false,
@@ -33,8 +33,20 @@
     userDragged: false,
     waitingForData: false,
     interceptorsSetup: false,
-    dataTimeoutId: null,
     caseTypeDetected: false,
+
+    // Timers
+    pollId: null,
+    dataTimeoutId: null,
+    positionRetryId: null,
+
+    // Listeners cleanup
+    abortController: null,
+
+    // DOM references
+    floatingDisplay: null,
+
+    // BDP data
     bdp: {
       source: null,
       confidence: null,
@@ -46,15 +58,15 @@
 
   // ==================== COLOR / LABEL MAPS ====================
   const BDP_COLORS = [
-    { match: 'PBG',        color: 'rgba(233, 69, 96, 0.9)'  },
-    { match: 'MANUAL',     color: 'rgba(14, 173, 105, 0.9)'  },
-    { match: 'AID_MANUAL', color: 'rgba(14, 173, 105, 0.9)'  },
-    { match: 'LIVE_GLS',   color: 'rgba(33, 150, 243, 0.9)'  },
-    { match: 'GLS_ST_DIST',color: 'rgba(33, 150, 243, 0.9)'  },
-    { match: 'NESO',       color: 'rgba(123, 104, 238, 0.9)' },
-    { match: 'SCAN',       color: 'rgba(0, 188, 212, 0.9)'   },
-    { match: 'GPS',        color: 'rgba(0, 188, 212, 0.9)'   },
-    { match: 'LEARNABLE',  color: 'rgba(0, 188, 212, 0.9)'   },
+    { match: 'PBG',         color: 'rgba(233, 69, 96, 0.9)'  },
+    { match: 'MANUAL',      color: 'rgba(14, 173, 105, 0.9)'  },
+    { match: 'AID_MANUAL',  color: 'rgba(14, 173, 105, 0.9)'  },
+    { match: 'LIVE_GLS',    color: 'rgba(33, 150, 243, 0.9)'  },
+    { match: 'GLS_ST_DIST', color: 'rgba(33, 150, 243, 0.9)'  },
+    { match: 'NESO',        color: 'rgba(123, 104, 238, 0.9)' },
+    { match: 'SCAN',        color: 'rgba(0, 188, 212, 0.9)'   },
+    { match: 'GPS',         color: 'rgba(0, 188, 212, 0.9)'   },
+    { match: 'LEARNABLE',   color: 'rgba(0, 188, 212, 0.9)'   },
   ];
 
   const SOURCE_LABELS = [
@@ -65,14 +77,14 @@
   function getBDPColor(src) {
     if (!src) return 'rgba(233, 69, 96, 0.9)';
     const upper = src.toUpperCase();
-    const found = BDP_COLORS.find((entry) => upper.includes(entry.match));
+    const found = BDP_COLORS.find((e) => upper.includes(e.match));
     return found ? found.color : 'rgba(96, 125, 139, 0.9)';
   }
 
   function cleanSourceName(src) {
     if (!src) return { label: 'UNKNOWN', type: 'other' };
     const upper = src.toUpperCase();
-    const match = SOURCE_LABELS.find((label) => upper.includes(label));
+    const match = SOURCE_LABELS.find((l) => upper.includes(l));
     if (match) return { label: match, type: match.toLowerCase() };
 
     const cleaned = src
@@ -85,32 +97,20 @@
   // ==================== CSS ====================
   const PANEL_CSS = `
     #gs-panel {
-      position: fixed;
-      width: 380px;
-      max-height: 80vh;
-      background: #1a1a2e;
-      color: #e0e0e0;
-      border: 2px solid #00d4ff;
-      border-radius: 10px;
-      z-index: 999999;
-      font-family: 'Segoe UI', Arial, sans-serif;
-      font-size: 13px;
-      box-shadow: 0 6px 24px rgba(0, 212, 255, 0.25);
-      overflow: hidden;
-      transition: border-color 0.5s;
+      position: fixed; width: 380px; max-height: 80vh;
+      background: #1a1a2e; color: #e0e0e0;
+      border: 2px solid #00d4ff; border-radius: 10px;
+      z-index: 999999; font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 13px; box-shadow: 0 6px 24px rgba(0, 212, 255, 0.25);
+      overflow: hidden; transition: border-color 0.5s;
     }
     #gs-panel.minimized #gs-body { display: none; }
     #gs-panel.minimized { width: 200px; }
 
     #gs-header {
-      background: #0f3460;
-      padding: 8px 12px;
-      cursor: grab;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      user-select: none;
-      border-bottom: 1px solid #00d4ff;
+      background: #0f3460; padding: 8px 12px; cursor: grab;
+      display: flex; justify-content: space-between; align-items: center;
+      user-select: none; border-bottom: 1px solid #00d4ff;
     }
     #gs-header:active { cursor: grabbing; }
     #gs-header .title { font-weight: 700; font-size: 13px; color: #00d4ff; }
@@ -169,9 +169,7 @@
     .gs-src.transporter { background: #5c6bc0; color: #fff; }
     .gs-src.other       { background: #607d8b; color: #fff; }
 
-    .gs-entry-num {
-      font-size: 10px; color: #00d4ff; font-weight: 600; margin-bottom: 3px;
-    }
+    .gs-entry-num { font-size: 10px; color: #00d4ff; font-weight: 600; margin-bottom: 3px; }
     .gs-latest-badge {
       display: inline-block; background: #e94560; color: #fff;
       font-size: 9px; font-weight: 700; padding: 1px 5px;
@@ -188,13 +186,8 @@
   `;
 
   // ==================== HELPERS ====================
-  function $(selector) {
-    return document.querySelector(selector);
-  }
-
-  function $$(selector) {
-    return document.querySelectorAll(selector);
-  }
+  function $(sel) { return document.querySelector(sel); }
+  function $$(sel) { return document.querySelectorAll(sel); }
 
   function clean(val) {
     return val ? val.replace(/^"|"$/g, '').trim() : 'N/A';
@@ -237,10 +230,8 @@
       if (parsed.Locations_ && Array.isArray(parsed.Locations_)) {
         return parsed.Locations_.map((loc) => {
           const place =
-            loc.SafePlaceLocation_ ||
-            loc.MailroomLocation_ ||
-            loc.NeighborLocation_ ||
-            'Unknown';
+            loc.SafePlaceLocation_ || loc.MailroomLocation_ ||
+            loc.NeighborLocation_ || 'Unknown';
           return '📍 ' + place.replace(/_/g, ' ');
         }).join(', ');
       }
@@ -260,18 +251,6 @@
     return null;
   }
 
-  function walkTextNodes(root, match) {
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-      acceptNode: (node) =>
-        node.nodeValue?.trim().includes(match)
-          ? NodeFilter.FILTER_ACCEPT
-          : NodeFilter.FILTER_REJECT,
-    });
-    const results = [];
-    while (walker.nextNode()) results.push(walker.currentNode);
-    return results;
-  }
-
   function findAncestor(el, predicate, maxDepth = 10) {
     let current = el;
     for (let i = 0; i < maxDepth && current; i++) {
@@ -281,11 +260,7 @@
     return null;
   }
 
-  // ==================== COLLECT ENTRIES (CORE FIX) ====================
-  // Priority:
-  //   1. aidDetails → if has entries, use ONLY these
-  //   2. authoritativeValue → fallback when aidDetails is empty
-  //   3. Never use pidSummary
+  // ==================== COLLECT ENTRIES (AID PRIORITY) ====================
   function collectEntries(attr) {
     if (attr.aidDetails && attr.aidDetails.length > 0) {
       return [...attr.aidDetails];
@@ -296,30 +271,38 @@
     return [];
   }
 
-  // ==================== NETWORK INTERCEPTORS ====================
+  // ==================== NETWORK INTERCEPTORS (SMART) ====================
   function setupInterceptors() {
     if (state.interceptorsSetup) return;
     state.interceptorsSetup = true;
 
-    // -- Fetch intercept --
+    // -- Smart Fetch Intercept --
     const origFetch = window.fetch;
     window.fetch = async function (...args) {
       const res = await origFetch.apply(this, args);
+
+      // Skip everything if not active
+      if (!state.active) return res;
+
       const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
-      try {
-        if (url.includes(API.ADDRESS_INFO)) {
+
+      // Only process our specific APIs
+      if (url.includes(API.ADDRESS_INFO)) {
+        try {
           res.clone().json().then(handleAddressInfoReceived).catch(() => {});
-        }
-        if (url.includes(API.ATTRIBUTES) && state.waitingForData) {
+        } catch { /* ignore */ }
+      } else if (url.includes(API.ATTRIBUTES) && state.waitingForData) {
+        try {
           res.clone().json().then((data) => {
             if (data?.attributeSummaryList) handleAttributesDataReceived(data);
           }).catch(() => {});
-        }
-      } catch { /* ignore */ }
+        } catch { /* ignore */ }
+      }
+
       return res;
     };
 
-    // -- XHR intercept --
+    // -- Smart XHR Intercept --
     const origOpen = XMLHttpRequest.prototype.open;
     const origSend = XMLHttpRequest.prototype.send;
 
@@ -329,30 +312,34 @@
     };
 
     XMLHttpRequest.prototype.send = function (...args) {
-      this.addEventListener('load', function () {
-        try {
-          const url = this._interceptUrl;
-          if (!url) return;
-          const data = JSON.parse(this.responseText);
-          if (url.includes(API.ADDRESS_INFO)) {
-            handleAddressInfoReceived(data);
-          }
-          if (url.includes(API.ATTRIBUTES) && state.waitingForData && data?.attributeSummaryList) {
-            handleAttributesDataReceived(data);
-          }
-        } catch { /* ignore */ }
-      });
+      const url = this._interceptUrl || '';
+
+      // Only attach listener if active AND URL matches our APIs
+      if (state.active && (url.includes(API.ADDRESS_INFO) || url.includes(API.ATTRIBUTES))) {
+        this.addEventListener('load', function () {
+          if (!state.active) return;
+          try {
+            const data = JSON.parse(this.responseText);
+            if (url.includes(API.ADDRESS_INFO)) {
+              handleAddressInfoReceived(data);
+            } else if (url.includes(API.ATTRIBUTES) && state.waitingForData && data?.attributeSummaryList) {
+              handleAttributesDataReceived(data);
+            }
+          } catch { /* ignore */ }
+        }, { once: true }); // Self-destructs after firing
+      }
+
       return origSend.apply(this, args);
     };
 
-    console.log('[GS Panel] Interceptors ready');
+    console.log('[GS Panel] Smart interceptors ready');
   }
 
   // ==================== DATA HANDLERS ====================
   function handleAddressInfoReceived(data) {
-    if (!data) return;
-    const bdp = data.geospatialData?.bestDeliveryPoint;
+    if (!state.active || !data) return;
 
+    const bdp = data.geospatialData?.bestDeliveryPoint;
     state.bdp.source     = bdp?.source || null;
     state.bdp.confidence = bdp?.confidence || null;
     state.bdp.scope      = bdp?.scope ?? null;
@@ -364,7 +351,7 @@
   }
 
   function handleAttributesDataReceived(data) {
-    if (!state.waitingForData) return;
+    if (!state.active || !state.waitingForData) return;
     state.waitingForData = false;
 
     if (state.dataTimeoutId) {
@@ -375,7 +362,6 @@
     const dhEntries  = [];
     const pdlEntries = [];
 
-    // Collect DH and PDL using proper priority logic
     for (const attr of data.attributeSummaryList) {
       if (attr.attributeName === 'DELIVERY_HINT') {
         dhEntries.push(...collectEntries(attr));
@@ -393,7 +379,7 @@
 
   // ==================== FLOATING DISPLAY (BDP) ====================
   function createFloatingDisplay() {
-    if (state.floatingDisplay) return;
+    destroyFloatingDisplay(); // Clean any existing one first
     const el = document.createElement('div');
     el.id = 'caseTypeDisplay';
     el.style.cssText = `
@@ -408,10 +394,21 @@
     state.floatingDisplay = el;
   }
 
+  function destroyFloatingDisplay() {
+    if (state.floatingDisplay) {
+      state.floatingDisplay.remove();
+      state.floatingDisplay = null;
+    }
+    // Also remove any orphaned display
+    $('#caseTypeDisplay')?.remove();
+  }
+
   function showFloatingDisplay() {
-    const el = state.floatingDisplay || (createFloatingDisplay(), state.floatingDisplay);
+    if (!state.active) return;
+    if (!state.floatingDisplay) createFloatingDisplay();
     if (!state.bdp.received) return;
 
+    const el = state.floatingDisplay;
     const { source, confidence, scope, tolerance } = state.bdp;
 
     if (source) {
@@ -437,7 +434,7 @@
 
   // ==================== CASE TYPE DETECTION ====================
   function checkForCaseType() {
-    if (state.textFound || state.isChecking) return;
+    if (!state.active || state.textFound || state.isChecking) return;
     state.isChecking = true;
 
     const elements = $$('.css-wncc9b');
@@ -460,7 +457,10 @@
     state.textFound = true;
     state.caseTypeDetected = true;
 
-    console.log('[GS Panel] CaseType detected');
+    // STOP polling — no need to look anymore
+    stopPolling();
+
+    console.log('[GS Panel] CaseType detected — polling stopped');
 
     if (state.bdp.received) showFloatingDisplay();
 
@@ -469,9 +469,30 @@
     triggerGSPanel();
   }
 
+  // ==================== POLLING CONTROL ====================
+  function startPolling() {
+    stopPolling(); // Clear any existing
+    state.pollId = setInterval(() => {
+      if (!state.active || state.textFound) {
+        stopPolling();
+        return;
+      }
+      checkForCaseType();
+    }, 100);
+    console.log('[GS Panel] Polling started');
+  }
+
+  function stopPolling() {
+    if (state.pollId) {
+      clearInterval(state.pollId);
+      state.pollId = null;
+      console.log('[GS Panel] Polling stopped');
+    }
+  }
+
   // ==================== AUTO-CLICK ACTIONS ====================
   function clickTargetButton() {
-    if (state.buttonClicked) return;
+    if (!state.active || state.buttonClicked) return;
 
     const selectors = [
       'button.css-px7qg4',
@@ -482,20 +503,15 @@
     for (const sel of selectors) {
       try {
         const btn = $(sel);
-        if (btn) {
-          btn.click();
-          state.buttonClicked = true;
-          return;
-        }
+        if (btn) { btn.click(); state.buttonClicked = true; return; }
       } catch { /* ignore */ }
     }
-    setTimeout(clickTargetButton, 100);
+    if (state.active) setTimeout(clickTargetButton, 100);
   }
 
   function clickSharedDeliveryArea(retry) {
-    if (state.sharedDeliveryClicked || retry >= MAX_RETRIES) return;
+    if (!state.active || state.sharedDeliveryClicked || retry >= MAX_RETRIES) return;
 
-    // Strategy 1: MUI accordion
     const accordion =
       findByText('.MuiAccordion-root.css-sqxyby', 'Shared Delivery Area') ||
       findByText('div[class*="MuiAccordion"], div[class*="css-sqxyby"]', 'Shared Delivery Area');
@@ -510,10 +526,15 @@
       return;
     }
 
-    // Strategy 2: text node walk
-    const textNodes = walkTextNodes(document.body, 'Shared Delivery Area');
-    for (const node of textNodes) {
-      const ancestor = findAncestor(node.parentElement, (el) =>
+    // Text node walk — scoped search, no array storage
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) =>
+        node.nodeValue?.trim().includes('Shared Delivery Area')
+          ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
+    });
+
+    while (walker.nextNode()) {
+      const ancestor = findAncestor(walker.currentNode.parentElement, (el) =>
         el.classList?.contains('MuiAccordion-root') ||
         el.classList?.contains('MuiAccordionSummary-root') ||
         el.getAttribute('role') === 'button'
@@ -529,46 +550,42 @@
       }
     }
 
-    setTimeout(() => clickSharedDeliveryArea(retry + 1), 100);
+    if (state.active) setTimeout(() => clickSharedDeliveryArea(retry + 1), 100);
   }
 
   function clickEditDetails(retry) {
-    if (state.editDetailsClicked || retry >= MAX_RETRIES) return;
+    if (!state.active || state.editDetailsClicked || retry >= MAX_RETRIES) return;
 
-    // Strategy 1: specific class
     for (const el of $$('.css-1lnv98w')) {
       if (el.textContent?.trim() === 'Edit Details') {
-        el.click();
-        state.editDetailsClicked = true;
-        return;
+        el.click(); state.editDetailsClicked = true; return;
       }
     }
 
-    // Strategy 2: any clickable
     for (const el of $$('button, a, span, div, p, [role="button"]')) {
       if (el.textContent?.trim() === 'Edit Details') {
-        el.click();
-        state.editDetailsClicked = true;
-        return;
+        el.click(); state.editDetailsClicked = true; return;
       }
     }
 
-    // Strategy 3: text node walk
-    const textNodes = walkTextNodes(document.body, 'Edit Details');
-    for (const node of textNodes) {
-      if (node.nodeValue?.trim() === 'Edit Details' && node.parentElement) {
-        const ancestor = findAncestor(
-          node.parentElement,
-          (el) => el.classList?.contains('css-1lnv98w'),
-          5
-        );
-        (ancestor || node.parentElement).click();
-        state.editDetailsClicked = true;
-        return;
-      }
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) =>
+        node.nodeValue?.trim() === 'Edit Details'
+          ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
+    });
+
+    if (walker.nextNode() && walker.currentNode.parentElement) {
+      const ancestor = findAncestor(
+        walker.currentNode.parentElement,
+        (el) => el.classList?.contains('css-1lnv98w'),
+        5
+      );
+      (ancestor || walker.currentNode.parentElement).click();
+      state.editDetailsClicked = true;
+      return;
     }
 
-    setTimeout(() => clickEditDetails(retry + 1), 100);
+    if (state.active) setTimeout(() => clickEditDetails(retry + 1), 100);
   }
 
   // ==================== ATTRIBUTES ACCORDION ====================
@@ -580,12 +597,12 @@
   }
 
   function openAttributesAccordion(retry) {
+    if (!state.active) return;
+
     if (retry >= MAX_RETRIES) {
       console.log('[GS Panel] Accordion not found');
       const body = $('#gs-body');
-      if (body) {
-        body.innerHTML = '<div class="gs-loading" style="color:#e94560">❌ "Attributes sources" accordion not found</div>';
-      }
+      if (body) body.innerHTML = '<div class="gs-loading" style="color:#e94560">❌ "Attributes sources" accordion not found</div>';
       return;
     }
 
@@ -595,8 +612,7 @@
       return;
     }
 
-    const isExpanded = acc.getAttribute('aria-expanded') === 'true';
-    if (isExpanded) {
+    if (acc.getAttribute('aria-expanded') === 'true') {
       acc.click();
       setTimeout(() => openAttributesAccordion(0), 600);
       return;
@@ -612,9 +628,7 @@
       state.waitingForData = false;
       console.log('[GS Panel] Timeout — no data received');
       const body = $('#gs-body');
-      if (body) {
-        body.innerHTML = '<div class="gs-loading" style="color:#e94560">❌ Timeout — No data received.</div>';
-      }
+      if (body) body.innerHTML = '<div class="gs-loading" style="color:#e94560">❌ Timeout — No data received.</div>';
       closeAttributesAccordion();
     }, DATA_TIMEOUT_MS);
   }
@@ -629,12 +643,13 @@
 
   // ==================== RENDER PANEL ====================
   function renderPanel(dhEntries, latestPDL) {
+    if (!state.active) return;
     const body = $('#gs-body');
     if (!body) return;
 
     let html = '';
 
-    // ---- Delivery Hints ----
+    // Delivery Hints
     html += '<div class="gs-block dh">';
     html += `<div class="gs-label">🔴 Delivery Hints (${dhEntries.length})</div>`;
     if (dhEntries.length) {
@@ -661,7 +676,7 @@
     }
     html += '</div>';
 
-    // ---- Preferred Delivery Location (latest only) ----
+    // PDL (latest only)
     html += '<div class="gs-block pdl">';
     html += '<div class="gs-label">🟢 Preferred Delivery Location</div>';
     if (latestPDL) {
@@ -694,11 +709,13 @@
       panel.style.display = 'block';
       setInitialPosition();
       panel.style.borderColor = '#0ead69';
-      setTimeout(() => (panel.style.borderColor = '#00d4ff'), 1000);
+      setTimeout(() => {
+        if (panel) panel.style.borderColor = '#00d4ff';
+      }, 1000);
     }
   }
 
-  // ==================== PANEL CREATION & POSITIONING ====================
+  // ==================== PANEL POSITIONING ====================
   function setInitialPosition() {
     if (state.userDragged) return;
     const panel = $('#gs-panel');
@@ -719,9 +736,9 @@
     }
   }
 
+  // ==================== PANEL CREATE / DESTROY ====================
   function createPanel() {
-    $('#gs-panel')?.remove();
-    $('#gs-panel-css')?.remove();
+    destroyPanel(); // Clean any existing first
 
     const style = document.createElement('style');
     style.id = 'gs-panel-css';
@@ -744,19 +761,23 @@
     setInitialPosition();
     setupDrag(panel);
 
+    // Position retry with stored ID for cleanup
     let retries = 0;
-    const interval = setInterval(() => {
+    state.positionRetryId = setInterval(() => {
       if (state.userDragged || ++retries > 10) {
-        clearInterval(interval);
+        clearInterval(state.positionRetryId);
+        state.positionRetryId = null;
         return;
       }
       setInitialPosition();
     }, 1000);
 
+    // Resize listener with AbortController
     window.addEventListener('resize', () => {
       if (!state.userDragged) setInitialPosition();
-    });
+    }, { signal: state.abortController.signal });
 
+    // Minimize button
     panel.querySelector('#gs-min').addEventListener('click', () => {
       panel.classList.toggle('minimized');
       panel.querySelector('#gs-min').textContent =
@@ -766,6 +787,21 @@
     state.gsPanelCreated = true;
   }
 
+  function destroyPanel() {
+    // Remove DOM elements
+    $('#gs-panel')?.remove();
+    $('#gs-panel-css')?.remove();
+
+    // Clear position retry
+    if (state.positionRetryId) {
+      clearInterval(state.positionRetryId);
+      state.positionRetryId = null;
+    }
+
+    state.gsPanelCreated = false;
+  }
+
+  // ==================== DRAG (uses AbortController) ====================
   function setupDrag(panel) {
     const header = panel.querySelector('#gs-header');
     let dragging = false, startX, startY, startLeft, startTop;
@@ -784,6 +820,7 @@
       e.preventDefault();
     });
 
+    // Use AbortController for document-level listeners
     document.addEventListener('mousemove', (e) => {
       if (!dragging) return;
       state.userDragged = true;
@@ -791,15 +828,16 @@
       const maxY = window.innerHeight - 50;
       panel.style.left = Math.max(0, Math.min(startLeft + e.clientX - startX, maxX)) + 'px';
       panel.style.top = Math.max(0, Math.min(startTop + e.clientY - startY, maxY)) + 'px';
-    });
+    }, { signal: state.abortController.signal });
 
     document.addEventListener('mouseup', () => {
       dragging = false;
-    });
+    }, { signal: state.abortController.signal });
   }
 
-  // ==================== TRIGGER / RESET ====================
+  // ==================== TRIGGER GS PANEL ====================
   function triggerGSPanel() {
+    if (!state.active) return;
     if (!state.gsPanelCreated) createPanel();
 
     const body = $('#gs-body');
@@ -811,53 +849,97 @@
     openAttributesAccordion(0);
   }
 
-  function resetState() {
-    Object.assign(state, {
-      textFound: false,
-      isChecking: false,
-      buttonClicked: false,
-      sharedDeliveryClicked: false,
-      editDetailsClicked: false,
-      waitingForData: false,
-      caseTypeDetected: false,
-      bdp: { source: null, confidence: null, scope: null, tolerance: null, received: false },
-    });
+  // ==================== FULL CLEANUP (on submit) ====================
+  function fullCleanup() {
+    console.log('[GS Panel] 🧹 Full cleanup started');
 
+    // 1. Deactivate — interceptors go dormant
+    state.active = false;
+
+    // 2. Stop all timers
+    stopPolling();
     if (state.dataTimeoutId) {
       clearTimeout(state.dataTimeoutId);
       state.dataTimeoutId = null;
     }
-
-    if (state.floatingDisplay) {
-      state.floatingDisplay.style.display = 'none';
-      state.floatingDisplay.innerHTML = '';
+    if (state.positionRetryId) {
+      clearInterval(state.positionRetryId);
+      state.positionRetryId = null;
     }
 
-    const body = $('#gs-body');
-    if (body) body.innerHTML = '<div class="gs-loading">⏳ Waiting for data...</div>';
-
-    const panel = $('#gs-panel');
-    if (panel) {
-      panel.style.display = 'none';
-      panel.style.borderColor = '#00d4ff';
+    // 3. Remove ALL document/window listeners at once
+    if (state.abortController) {
+      state.abortController.abort();
+      state.abortController = null;
     }
+
+    // 4. Destroy DOM elements completely
+    destroyPanel();
+    destroyFloatingDisplay();
+
+    // 5. Reset all state flags
+    state.textFound = false;
+    state.isChecking = false;
+    state.buttonClicked = false;
+    state.sharedDeliveryClicked = false;
+    state.editDetailsClicked = false;
+    state.waitingForData = false;
+    state.caseTypeDetected = false;
+    state.gsPanelCreated = false;
+    state.userDragged = false;
+
+    // 6. Clear BDP data
+    state.bdp.source = null;
+    state.bdp.confidence = null;
+    state.bdp.scope = null;
+    state.bdp.tolerance = null;
+    state.bdp.received = false;
+
+    console.log('[GS Panel] 🧹 Cleanup complete — memory freed');
+
+    // 7. Reactivate for next case
+    startFresh();
   }
 
-  // ==================== INIT ====================
+  // ==================== START FRESH (after cleanup) ====================
+  function startFresh() {
+    console.log('[GS Panel] 🔄 Ready for next case');
+
+    // New AbortController for new listeners
+    state.abortController = new AbortController();
+
+    // Activate interceptors
+    state.active = true;
+
+    // Start polling for next case type
+    startPolling();
+  }
+
+  // ==================== INITIALIZE ====================
   function initialize() {
-    console.log('[GS Panel] Initializing...');
+    console.log('[GS Panel] Initializing (Memory Optimized)...');
 
+    // Setup smart interceptors (one-time, permanent but dormant when inactive)
     setupInterceptors();
-    createFloatingDisplay();
 
-    setInterval(() => {
-      if (!state.textFound) checkForCaseType();
-    }, 100);
+    // Create fresh AbortController
+    state.abortController = new AbortController();
 
+    // Activate
+    state.active = true;
+
+    // Start polling for case type
+    startPolling();
+
+    // Submit button listener (permanent — outside AbortController)
     document.addEventListener('click', (e) => {
-      if (e.target?.id === 'submit-btn') setTimeout(resetState, 100);
+      if (e.target?.id === 'submit-btn') {
+        console.log('[GS Panel] Submit clicked — triggering cleanup');
+        setTimeout(fullCleanup, 100);
+      }
     }, true);
 
+    // Initial check
     setTimeout(checkForCaseType, 100);
   }
 
