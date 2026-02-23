@@ -3,8 +3,8 @@
 // @namespace    http://tampermonkey.net/
 // @version      2026-02-20
 // @description  CaseType Observer + GS Panel (DH & PDL via Intercept) + BDP Source + Bing Translate + Memory Optimized
-// @author       You
-// @match        https://na.geostudio.last-mile.amazon.dev/place
+// @author       manichk
+// @match        https://na.geostudio.last-mile.amazon.dev/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=amazon.dev
 // @grant        none
 // ==/UserScript==
