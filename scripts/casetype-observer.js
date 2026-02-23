@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         DH PDL
 // @namespace    http://tampermonkey.net/
-// @version      2026-02-20
-// @description  CaseType Observer + GS Panel (DH & PDL via Intercept) + BDP Source + Bing Translate + Memory Optimized
-// @author       manichk
+// @version      2026-02-19
+// @description  CaseType Observer + GS Panel (DH & PDL via Intercept) + BDP Source + Bing Translate
+// @author       You
 // @match        https://na.geostudio.last-mile.amazon.dev/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=amazon.dev
 // @grant        none
@@ -34,6 +34,10 @@
     waitingForData: false,
     interceptorsSetup: false,
     caseTypeDetected: false,
+
+    // Case type info
+    caseTypeText: null,
+    isLiveCase: false,
 
     // Timers
     pollId: null,
@@ -276,17 +280,13 @@
     if (state.interceptorsSetup) return;
     state.interceptorsSetup = true;
 
-    // -- Smart Fetch Intercept --
     const origFetch = window.fetch;
     window.fetch = async function (...args) {
       const res = await origFetch.apply(this, args);
-
-      // Skip everything if not active
       if (!state.active) return res;
 
       const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
 
-      // Only process our specific APIs
       if (url.includes(API.ADDRESS_INFO)) {
         try {
           res.clone().json().then(handleAddressInfoReceived).catch(() => {});
@@ -302,7 +302,6 @@
       return res;
     };
 
-    // -- Smart XHR Intercept --
     const origOpen = XMLHttpRequest.prototype.open;
     const origSend = XMLHttpRequest.prototype.send;
 
@@ -314,7 +313,6 @@
     XMLHttpRequest.prototype.send = function (...args) {
       const url = this._interceptUrl || '';
 
-      // Only attach listener if active AND URL matches our APIs
       if (state.active && (url.includes(API.ADDRESS_INFO) || url.includes(API.ATTRIBUTES))) {
         this.addEventListener('load', function () {
           if (!state.active) return;
@@ -326,7 +324,7 @@
               handleAttributesDataReceived(data);
             }
           } catch { /* ignore */ }
-        }, { once: true }); // Self-destructs after firing
+        }, { once: true });
       }
 
       return origSend.apply(this, args);
@@ -377,9 +375,9 @@
     setTimeout(closeAttributesAccordion, 300);
   }
 
-  // ==================== FLOATING DISPLAY (BDP) ====================
+  // ==================== FLOATING DISPLAY ====================
   function createFloatingDisplay() {
-    destroyFloatingDisplay(); // Clean any existing one first
+    destroyFloatingDisplay();
     const el = document.createElement('div');
     el.id = 'caseTypeDisplay';
     el.style.cssText = `
@@ -399,16 +397,32 @@
       state.floatingDisplay.remove();
       state.floatingDisplay = null;
     }
-    // Also remove any orphaned display
     $('#caseTypeDisplay')?.remove();
   }
 
   function showFloatingDisplay() {
     if (!state.active) return;
     if (!state.floatingDisplay) createFloatingDisplay();
-    if (!state.bdp.received) return;
 
     const el = state.floatingDisplay;
+
+    // ===== LIVE CASE — always red, show case type =====
+    if (state.isLiveCase) {
+      el.style.backgroundColor = 'rgba(220, 20, 20, 0.95)';
+      el.style.display = 'flex';
+      el.innerHTML = `
+        <span style="font-size:18px">🔴</span>
+        <span style="display:flex;flex-direction:column;gap:2px">
+          <span style="font-size:15px;font-weight:700;letter-spacing:0.5px">LIVE CASE</span>
+          <span style="font-size:11px;font-weight:400;opacity:0.9">${state.caseTypeText || 'Unknown'}</span>
+        </span>`;
+      console.log('[GS Panel] LIVE case detected — red alert shown');
+      return;
+    }
+
+    // ===== NON-LIVE CASE — show BDP source as usual =====
+    if (!state.bdp.received) return;
+
     const { source, confidence, scope, tolerance } = state.bdp;
 
     if (source) {
@@ -442,8 +456,11 @@
 
     for (const keyword of keywords) {
       for (const el of elements) {
-        if (el.textContent?.toLowerCase().includes(keyword)) {
-          handleCaseTypeFound();
+        const text = el.textContent;
+        if (text?.toLowerCase().includes(keyword)) {
+          // Capture the full case type text
+          const caseText = text.trim();
+          handleCaseTypeFound(caseText);
           state.isChecking = false;
           return;
         }
@@ -452,17 +469,25 @@
     state.isChecking = false;
   }
 
-  function handleCaseTypeFound() {
+  function handleCaseTypeFound(caseText) {
     if (state.textFound) return;
     state.textFound = true;
     state.caseTypeDetected = true;
 
-    // STOP polling — no need to look anymore
+    // Store case type text and check if it contains "live"
+    state.caseTypeText = caseText || '';
+    state.isLiveCase = state.caseTypeText.toLowerCase().includes('live');
+
     stopPolling();
 
-    console.log('[GS Panel] CaseType detected — polling stopped');
+    console.log(`[GS Panel] CaseType detected: "${state.caseTypeText}" | Live: ${state.isLiveCase}`);
 
-    if (state.bdp.received) showFloatingDisplay();
+    // For live cases — show immediately (no need to wait for BDP)
+    if (state.isLiveCase) {
+      showFloatingDisplay();
+    } else if (state.bdp.received) {
+      showFloatingDisplay();
+    }
 
     setTimeout(clickTargetButton, 100);
     setTimeout(() => clickSharedDeliveryArea(0), 100);
@@ -471,7 +496,7 @@
 
   // ==================== POLLING CONTROL ====================
   function startPolling() {
-    stopPolling(); // Clear any existing
+    stopPolling();
     state.pollId = setInterval(() => {
       if (!state.active || state.textFound) {
         stopPolling();
@@ -526,7 +551,6 @@
       return;
     }
 
-    // Text node walk — scoped search, no array storage
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
       acceptNode: (node) =>
         node.nodeValue?.trim().includes('Shared Delivery Area')
@@ -696,7 +720,6 @@
 
     body.innerHTML = html;
 
-    // Attach translate handlers
     body.querySelectorAll('.gs-translate-btn').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -738,7 +761,7 @@
 
   // ==================== PANEL CREATE / DESTROY ====================
   function createPanel() {
-    destroyPanel(); // Clean any existing first
+    destroyPanel();
 
     const style = document.createElement('style');
     style.id = 'gs-panel-css';
@@ -761,7 +784,6 @@
     setInitialPosition();
     setupDrag(panel);
 
-    // Position retry with stored ID for cleanup
     let retries = 0;
     state.positionRetryId = setInterval(() => {
       if (state.userDragged || ++retries > 10) {
@@ -772,12 +794,10 @@
       setInitialPosition();
     }, 1000);
 
-    // Resize listener with AbortController
     window.addEventListener('resize', () => {
       if (!state.userDragged) setInitialPosition();
     }, { signal: state.abortController.signal });
 
-    // Minimize button
     panel.querySelector('#gs-min').addEventListener('click', () => {
       panel.classList.toggle('minimized');
       panel.querySelector('#gs-min').textContent =
@@ -788,11 +808,9 @@
   }
 
   function destroyPanel() {
-    // Remove DOM elements
     $('#gs-panel')?.remove();
     $('#gs-panel-css')?.remove();
 
-    // Clear position retry
     if (state.positionRetryId) {
       clearInterval(state.positionRetryId);
       state.positionRetryId = null;
@@ -820,7 +838,6 @@
       e.preventDefault();
     });
 
-    // Use AbortController for document-level listeners
     document.addEventListener('mousemove', (e) => {
       if (!dragging) return;
       state.userDragged = true;
@@ -853,7 +870,7 @@
   function fullCleanup() {
     console.log('[GS Panel] 🧹 Full cleanup started');
 
-    // 1. Deactivate — interceptors go dormant
+    // 1. Deactivate
     state.active = false;
 
     // 2. Stop all timers
@@ -867,17 +884,17 @@
       state.positionRetryId = null;
     }
 
-    // 3. Remove ALL document/window listeners at once
+    // 3. Remove ALL document/window listeners
     if (state.abortController) {
       state.abortController.abort();
       state.abortController = null;
     }
 
-    // 4. Destroy DOM elements completely
+    // 4. Destroy DOM elements
     destroyPanel();
     destroyFloatingDisplay();
 
-    // 5. Reset all state flags
+    // 5. Reset all state
     state.textFound = false;
     state.isChecking = false;
     state.buttonClicked = false;
@@ -887,6 +904,8 @@
     state.caseTypeDetected = false;
     state.gsPanelCreated = false;
     state.userDragged = false;
+    state.caseTypeText = null;
+    state.isLiveCase = false;
 
     // 6. Clear BDP data
     state.bdp.source = null;
@@ -895,43 +914,30 @@
     state.bdp.tolerance = null;
     state.bdp.received = false;
 
-    console.log('[GS Panel] 🧹 Cleanup complete — memory freed');
+    console.log('[GS Panel] 🧹 Cleanup complete');
 
     // 7. Reactivate for next case
     startFresh();
   }
 
-  // ==================== START FRESH (after cleanup) ====================
+  // ==================== START FRESH ====================
   function startFresh() {
     console.log('[GS Panel] 🔄 Ready for next case');
-
-    // New AbortController for new listeners
     state.abortController = new AbortController();
-
-    // Activate interceptors
     state.active = true;
-
-    // Start polling for next case type
     startPolling();
   }
 
   // ==================== INITIALIZE ====================
   function initialize() {
-    console.log('[GS Panel] Initializing (Memory Optimized)...');
+    console.log('[GS Panel] Initializing (Memory Optimized + Live Detection)...');
 
-    // Setup smart interceptors (one-time, permanent but dormant when inactive)
     setupInterceptors();
-
-    // Create fresh AbortController
     state.abortController = new AbortController();
-
-    // Activate
     state.active = true;
-
-    // Start polling for case type
     startPolling();
 
-    // Submit button listener (permanent — outside AbortController)
+    // Submit listener (permanent — outside AbortController)
     document.addEventListener('click', (e) => {
       if (e.target?.id === 'submit-btn') {
         console.log('[GS Panel] Submit clicked — triggering cleanup');
@@ -939,7 +945,6 @@
       }
     }, true);
 
-    // Initial check
     setTimeout(checkForCaseType, 100);
   }
 
