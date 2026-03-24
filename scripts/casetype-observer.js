@@ -54,7 +54,7 @@
     { match: 'PBG',         color: 'rgba(233, 69, 96, 0.9)'  },
     { match: 'MANUAL',      color: 'rgba(14, 173, 105, 0.9)'  },
     { match: 'AID_MANUAL',  color: 'rgba(14, 173, 105, 0.9)'  },
-    { match: 'LIVE_GLS',    color: 'rgba(33, 150, 243, 0.9)'  },
+    { match: 'LIVE',    color: 'rgba(33, 150, 243, 0.9)'  },
     { match: 'GLS_ST_DIST', color: 'rgba(33, 150, 243, 0.9)'  },
     { match: 'NESO',        color: 'rgba(123, 104, 238, 0.9)' },
     { match: 'SCAN',        color: 'rgba(0, 188, 212, 0.9)'   },
