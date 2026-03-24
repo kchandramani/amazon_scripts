@@ -1,14 +1,3 @@
-// ==UserScript==
-// @name         DH PDL
-// @namespace    http://tampermonkey.net/
-// @version      2026-02-19
-// @description  CaseType Observer + GS Panel (DH & PDL via Intercept) + BDP Source + Bing Translate
-// @author       You
-// @match        https://na.geostudio.last-mile.amazon.dev/*
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=amazon.dev
-// @grant        none
-// ==/UserScript==
-
 (function () {
   'use strict';
 
