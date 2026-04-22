@@ -174,8 +174,8 @@ function alignDropdown() {
 
     const rect = textbox.getBoundingClientRect();
 
-    selectList.style.left = rect.left + 'px';
-    selectList.style.top = (rect.bottom + 5) + 'px';
+    selectList.style.left = (rect.left + 50) + 'px';
+    selectList.style.top = (rect.bottom + 10) + 'px';
 }
 
 // run initially
