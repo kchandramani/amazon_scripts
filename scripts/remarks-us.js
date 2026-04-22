@@ -5,7 +5,6 @@
 
     const selectList = document.createElement('select');
     selectList.style.position = 'absolute';
-    selectList.style.left = '40%';
     selectList.style.bottom = '1%';
     selectList.style.padding = '5px';
     selectList.style.border = '1px solid';
