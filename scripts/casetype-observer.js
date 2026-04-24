@@ -361,7 +361,16 @@
     const pdl = dedup(pdlEntries).sort(sortByTimeDesc);
 
     renderPanel(dh, pdl[0] || null);
-    setTimeout(closeAttributesAccordion, 300);
+    //setTimeout(closeAttributesAccordion, 300);
+    setTimeout(() => {
+    closeAttributesAccordion();
+
+  // NEW: open past deliveries after closing attributes
+    setTimeout(() => {
+    openPastDeliveriesAccordion(0);
+  }, 400);
+
+}, 300);
   }
 
   // ==================== FLOATING DISPLAY ====================
@@ -653,6 +662,25 @@
       console.log('[GS Panel] Accordion closed');
     }
   }
+
+  function openPastDeliveriesAccordion(retry = 0) {
+  if (!state.active || retry >= MAX_RETRIES) return;
+
+  const accordion =
+    findByText('[role="button"]', 'Past deliveries') ||
+    findByText('.MuiAccordionSummary-root', 'Past deliveries');
+
+  if (accordion) {
+    if (accordion.getAttribute('aria-expanded') !== 'true') {
+      accordion.click();
+      console.log('[GS Panel] Past Deliveries opened');
+    }
+    return;
+  }
+
+  // retry until found
+  setTimeout(() => openPastDeliveriesAccordion(retry + 1), 200);
+}
 
   // ==================== RENDER PANEL ====================
   function renderPanel(dhEntries, latestPDL) {
