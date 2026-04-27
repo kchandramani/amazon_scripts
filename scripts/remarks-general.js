@@ -35,7 +35,7 @@ const options = [
     'Zip is on the same road.',
     'CX_Hint Address Coflict',
     'Within Locality',
-    'Multiple Road',
+   // 'Multiple Road',
     'Partially Matching Road',
     'Adjacent locality',
     'Long Road / No GCRS',
@@ -46,20 +46,20 @@ const options = [
 const textToInsert = {
     'Delivery Hints': 'Geocorrected based on delivery hints provided by the customer',
     'Preferred Delivery loc': 'Geocorrected based on the Preferred Delivery location',
-    'Customer preference': 'Geocorrected based on details mentioned by the Customer in the customer name column of geostudio.',
+    'Customer preference': 'Geocorrected based on details mentioned by the Customer in the customer name column of geostudio',
     'NotFoundin3P': 'Not able to locate in 3P',
-    'long road': 'long road and no GCRS and bing is also not taking to the building or nearby building number.',
-    'Zip is on the same road.': 'Zip is on the same road.',
-    'Zip Issue': 'ZIP is Not Matching.',
+    'long road': 'long road and no GCRS and bing is also not taking to the building or nearby building number',
+    'Zip is on the same road.': 'Zip is on the same road',
+    'Zip Issue': 'ZIP is Not Matching',
     'CX_Hint Address Coflict': 'CX address and delivery hint address are conflicting',
     'Locality Mismatch': 'Locality is not Matching  or Not locatable or too far.',
-    'Within Locality': 'Marked within locality , using bing right click validation wrtx Locality bouandry.',
-    'Multiple Road': 'Multiple roads with same name or Multiple Prefix, Suffix',
+   // 'Within Locality': 'Marked within locality  using bing right click validation wrtx Locality bouandry',
+    'Multiple Road': 'Multiple roads with same name or Multiple Prefix Suffix',
     'Partially Matching Road': 'Partially Matching street',
     'Adjacent locality': 'Adjacent locality Found',
-    'Long Road / No GCRS': 'long road and no GCRS and bing is also not taking to the building or nearby building number ',
+    'Long Road / No GCRS': 'long road and no GCRS and bing is also not taking to the building or nearby building number',
     'Combination Not Found': 'Not found the road combination mentioned By CX',
-    'Traffic Road issue': 'Traffic roads  service roads not enabling  GS issue.'
+    'Traffic Road issue': 'Traffic roads service roads not enabling  GS issue'
 };
 
 options.forEach((optionText, index) => {
