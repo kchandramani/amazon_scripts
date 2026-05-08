@@ -8,7 +8,6 @@ const API = {
 };
 const MAX_RETRIES = 30;
 const DATA_TIMEOUT_MS = 15000;
-const SCRAPER_WAIT_MS = 2000; // Wait 2s for network, then scrape DOM
 
 // ==================== STATE ====================
 const state = {
@@ -27,6 +26,7 @@ const state = {
     isLiveCase: false,
     pollId: null,
     dataTimeoutId: null,
+    scraperIntervalId: null, // New: for polling the DOM
     positionRetryId: null,
     abortController: null,
     floatingDisplay: null,
@@ -128,7 +128,9 @@ function clean(val) { return val ? val.replace(/^"|"\$/g, '').trim() : 'N/A'; }
 function fmtDate(d) {
     if (!d) return '';
     try {
-        return new Date(d).toLocaleDateString('en-US', {
+        const date = new Date(d);
+        if (isNaN(date)) return d;
+        return date.toLocaleDateString('en-US', {
             month: 'short', day: 'numeric', year: 'numeric',
             hour: '2-digit', minute: '2-digit',
         });
@@ -181,15 +183,6 @@ function findByText(selector, text) {
     return null;
 }
 
-function findAncestor(el, predicate, maxDepth = 10) {
-    let current = el;
-    for (let i = 0; i < maxDepth && current; i++) {
-        if (predicate(current)) return current;
-        current = current.parentElement;
-    }
-    return null;
-}
-
 // ==================== DATA HANDLERS ====================
 
 function handleAddressInfoReceived(data) {
@@ -206,7 +199,10 @@ function handleAddressInfoReceived(data) {
 function handleAttributesDataReceived(data) {
     if (!state.active || !state.waitingForData) return;
     state.waitingForData = false;
+    
+    // Clear timeouts and intervals
     if (state.dataTimeoutId) { clearTimeout(state.dataTimeoutId); state.dataTimeoutId = null; }
+    if (state.scraperIntervalId) { clearInterval(state.scraperIntervalId); state.scraperIntervalId = null; }
 
     const dhEntries  = [];
     const pdlEntries = [];
@@ -231,50 +227,59 @@ function handleAttributesDataReceived(data) {
 }
 
 /**
- * FE REGION FALLBACK: Scrapes the DOM if network interceptor misses the data
+ * REFINED FE REGION SCRAPER
  */
 function scrapeAttributesFromDOM() {
     if (!state.active || !state.waitingForData) return false;
-    console.log('[GS Panel] Attempting DOM scrape (FE Fallback)...');
 
     const dhEntries = [];
     let latestPDL = null;
 
-    // The css-s8qwt0 represents the attribute container blocks in your HTML
+    // Use the container class from your HTML snippet
     const blocks = $$('.css-s8qwt0');
-    
+    if (blocks.length === 0) return false;
+
     blocks.forEach(block => {
         const titleEl = block.querySelector('b');
-        const title = titleEl ? titleEl.textContent.trim() : "";
+        const title = titleEl ? titleEl.textContent.trim().toUpperCase() : "";
         
-        // Find Value, Source, Timestamp by looking for labels
-        const labels = block.querySelectorAll('.css-oshm15'); // Labels like "Value |", "Source |"
-        let entry = { value: null, attributeSrc: null, formattedDateTime: null };
+        // Find Values and Sources using specific classes from your snippet
+        const valueEl = block.querySelector('.css-1fslquw'); // The "Value |" text
+        const metaEls = block.querySelectorAll('.css-oz22nj'); // Used for Source and Timestamp
+        
+        let source = "UNKNOWN";
+        let timestamp = null;
 
-        labels.forEach(lbl => {
-            const labelText = lbl.textContent.toLowerCase();
-            const valEl = lbl.nextElementSibling;
-            if (!valEl) return;
-
-            if (labelText.includes('value')) entry.value = valEl.textContent.trim();
-            if (labelText.includes('source')) entry.attributeSrc = valEl.textContent.trim();
-            if (labelText.includes('timestamp')) entry.formattedDateTime = valEl.textContent.trim();
+        metaEls.forEach(el => {
+            const txt = el.textContent.trim();
+            if (txt.match(/^\d{4}-\d{2}-\d{2}/)) timestamp = txt; // Looks like a date
+            else if (txt !== "Authoritative") source = txt; // Everything else is likely source
         });
 
-        if (title.includes('DELIVERY_HINT')) {
-            dhEntries.push(entry);
-        } else if (title.includes('Preferred delivery locations')) {
-            if (!latestPDL) latestPDL = entry; // Take the first one (usually authoritative)
+        if (valueEl) {
+            const entry = {
+                value: valueEl.textContent.trim(),
+                attributeSrc: source,
+                formattedDateTime: timestamp
+            };
+
+            if (title.includes('DELIVERY_HINT')) {
+                dhEntries.push(entry);
+            } else if (title.includes('PREFERRED DELIVERY LOCATIONS')) {
+                if (!latestPDL) latestPDL = entry;
+            }
         }
     });
 
     if (dhEntries.length > 0 || latestPDL) {
-        console.log('[GS Panel] Scrape successful!');
+        console.log('[GS Panel] FE Scrape Success!');
         state.waitingForData = false;
-        if (state.dataTimeoutId) { clearTimeout(state.dataTimeoutId); state.dataTimeoutId = null; }
         
-        const dhSorted = dhEntries.sort(sortByTimeDesc);
-        renderPanel(dhSorted, latestPDL);
+        // Cleanup all timers
+        if (state.dataTimeoutId) { clearTimeout(state.dataTimeoutId); state.dataTimeoutId = null; }
+        if (state.scraperIntervalId) { clearInterval(state.scraperIntervalId); state.scraperIntervalId = null; }
+        
+        renderPanel(dhEntries.sort(sortByTimeDesc), latestPDL);
         
         setTimeout(() => {
             closeAttributesAccordion();
@@ -330,20 +335,16 @@ function setupInterceptors() {
     };
 }
 
-// ==================== FLOATING DISPLAY ====================
+// ==================== UI ====================
 function createFloatingDisplay() {
-    destroyFloatingDisplay();
+    state.floatingDisplay?.remove();
     const el = document.createElement('div');
     el.id = 'caseTypeDisplay';
     el.style.cssText = `position:fixed; top:10px; left:200px; padding:12px 18px; background-color:rgba(0,0,0,0.8); color:white; z-index:9999; border-radius:8px; max-width:600px; word-wrap:break-word; font-family:"Segoe UI",Arial,sans-serif; font-size:14px; font-weight:bold; pointer-events:none; line-height:1.5; display:none; align-items:center; gap:8px;`;
     document.body.appendChild(el);
     state.floatingDisplay = el;
 }
-function destroyFloatingDisplay() {
-    state.floatingDisplay?.remove();
-    state.floatingDisplay = null;
-    $('#caseTypeDisplay')?.remove();
-}
+
 function showFloatingDisplay() {
     if (!state.active) return;
     if (!state.floatingDisplay) createFloatingDisplay();
@@ -352,65 +353,51 @@ function showFloatingDisplay() {
     if (state.isLiveCase) {
         el.style.backgroundColor = 'rgba(220, 20, 20, 0.95)';
         el.style.display = 'flex';
-        el.innerHTML = `<span style="font-size:18px">🔴</span><span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:700;letter-spacing:0.5px">LIVE CASE</span><span style="font-size:11px;font-weight:400;opacity:0.9">${state.caseTypeText || 'Unknown'}</span></span>`;
+        el.innerHTML = `🔴 <b>LIVE CASE</b> | <small>${state.caseTypeText || ''}</small>`;
         return;
     }
 
     if (!state.bdp.received) return;
-    const { source, confidence, scope, tolerance } = state.bdp;
+    const { source } = state.bdp;
     if (source) {
         el.style.backgroundColor = getBDPColor(source);
-        const details = [confidence && `Confidence: ${confidence}`, scope != null && `Scope: ${scope}`, tolerance != null && `Tolerance: ${tolerance}m`].filter(Boolean).join(' | ');
-        el.innerHTML = `<span style="font-size:16px">📍</span><span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:700">${source}</span>${details ? `<span style="font-size:10px;font-weight:400;opacity:0.85">${details}</span>` : ''}</span>`;
-    } else {
-        el.style.backgroundColor = 'rgba(233, 69, 96, 0.9)';
-        el.innerHTML = '<span style="font-size:16px">⚠️</span><span>No BDP Source Found</span>';
+        el.innerHTML = `📍 <b>${source}</b>`;
+        el.style.display = 'flex';
     }
-    el.style.display = 'flex';
 }
 
-// ==================== AUTOMATION LOGIC ====================
+// ==================== AUTOMATION ====================
 function checkForCaseType() {
     if (!state.active || state.textFound || state.isChecking) return;
     state.isChecking = true;
     const elements = $$('.css-wncc9b');
-    const keywords = ['source1', 'casetype'];
-    for (const keyword of keywords) {
-        for (const el of elements) {
-            const text = el.textContent;
-            if (text?.toLowerCase().includes(keyword)) {
-                state.caseTypeText = text.trim();
-                state.textFound = true;
-                state.caseTypeDetected = true;
-                state.isLiveCase = state.caseTypeText.toLowerCase().includes('live');
-                stopPolling();
-                if (state.isLiveCase) showFloatingDisplay();
-                else if (state.bdp.received) showFloatingDisplay();
-                
-                setTimeout(clickTargetButton, 100);
-                setTimeout(() => clickSharedDeliveryArea(0), 100);
-                triggerGSPanel();
-                state.isChecking = false;
-                return;
-            }
+    for (const el of elements) {
+        const text = el.textContent || "";
+        if (text.toLowerCase().includes('source1') || text.toLowerCase().includes('casetype')) {
+            state.caseTypeText = text.trim();
+            state.textFound = true;
+            state.caseTypeDetected = true;
+            state.isLiveCase = state.caseTypeText.toLowerCase().includes('live');
+            stopPolling();
+            showFloatingDisplay();
+            setTimeout(clickTargetButton, 100);
+            setTimeout(() => clickSharedDeliveryArea(0), 100);
+            triggerGSPanel();
+            state.isChecking = false;
+            return;
         }
     }
     state.isChecking = false;
 }
 
-function startPolling() {
-    stopPolling();
-    state.pollId = setInterval(checkForCaseType, 150);
-}
-function stopPolling() {
-    if (state.pollId) { clearInterval(state.pollId); state.pollId = null; }
-}
+function startPolling() { stopPolling(); state.pollId = setInterval(checkForCaseType, 200); }
+function stopPolling() { if (state.pollId) clearInterval(state.pollId); }
 
 function clickTargetButton() {
     if (!state.active || state.buttonClicked) return;
     const btn = $('button.css-px7qg4') || $('button[mdn-popover-offset="-4"]');
     if (btn) { btn.click(); state.buttonClicked = true; }
-    else setTimeout(clickTargetButton, 200);
+    else setTimeout(clickTargetButton, 300);
 }
 
 function clickSharedDeliveryArea(retry) {
@@ -420,84 +407,66 @@ function clickSharedDeliveryArea(retry) {
         const clickable = accordion.querySelector('[role="button"]') || accordion;
         clickable.click();
         state.sharedDeliveryClicked = true;
-        setTimeout(() => clickEditDetails(0), 150);
-    } else setTimeout(() => clickSharedDeliveryArea(retry + 1), 200);
+        setTimeout(() => clickEditDetails(0), 200);
+    } else setTimeout(() => clickSharedDeliveryArea(retry + 1), 300);
 }
 
 function clickEditDetails(retry) {
     if (!state.active || state.editDetailsClicked || retry >= MAX_RETRIES) return;
     const btn = findByText('button, span, div', 'Edit Details');
-    if (btn) {
-        btn.click();
-        state.editDetailsClicked = true;
-    } else setTimeout(() => clickEditDetails(retry + 1), 200);
-}
-
-function findAttributesAccordion() {
-    return findByText('[role="button"]', 'Attributes sources');
+    if (btn) { btn.click(); state.editDetailsClicked = true; }
+    else setTimeout(() => clickEditDetails(retry + 1), 300);
 }
 
 function openAttributesAccordion(retry) {
     if (!state.active) return;
-    if (retry >= MAX_RETRIES) {
-        // One last attempt to scrape before failing
-        if (!scrapeAttributesFromDOM()) {
-            const body = $('#gs-body');
-            if (body) body.innerHTML = '<div class="gs-loading" style="color:#e94560">❌ Timeout — No data received.</div>';
-        }
-        return;
-    }
-
-    const acc = findAttributesAccordion();
+    const acc = findByText('[role="button"]', 'Attributes sources');
+    
     if (!acc) {
-        setTimeout(() => openAttributesAccordion(retry + 1), 200);
+        if (retry < MAX_RETRIES) setTimeout(() => openAttributesAccordion(retry + 1), 300);
         return;
     }
 
     state.waitingForData = true;
-    if (acc.getAttribute('aria-expanded') !== 'true') {
-        acc.click();
-    }
+    if (acc.getAttribute('aria-expanded') !== 'true') acc.click();
 
-    // FE REGION FIX: 
-    // If network data doesn't arrive in 2 seconds, trigger the DOM scraper
-    setTimeout(() => {
-        if (state.waitingForData) {
-            scrapeAttributesFromDOM();
-        }
-    }, SCRAPER_WAIT_MS);
+    // Start aggressive DOM polling for FE region
+    if (state.scraperIntervalId) clearInterval(state.scraperIntervalId);
+    state.scraperIntervalId = setInterval(() => {
+        if (state.waitingForData) scrapeAttributesFromDOM();
+        else clearInterval(state.scraperIntervalId);
+    }, 500);
 
+    // Final safety timeout
     if (state.dataTimeoutId) clearTimeout(state.dataTimeoutId);
     state.dataTimeoutId = setTimeout(() => {
-        if (!state.waitingForData) return;
-        state.waitingForData = false;
-        const body = $('#gs-body');
-        if (body) body.innerHTML = '<div class="gs-loading" style="color:#e94560">❌ Timeout — No data received.</div>';
-        closeAttributesAccordion();
+        if (state.waitingForData) {
+            state.waitingForData = false;
+            clearInterval(state.scraperIntervalId);
+            const body = $('#gs-body');
+            if (body) body.innerHTML = '<div class="gs-loading" style="color:#e94560">❌ Timeout — No data received.</div>';
+        }
     }, DATA_TIMEOUT_MS);
 }
 
 function closeAttributesAccordion() {
-    const acc = findAttributesAccordion();
+    const acc = findByText('[role="button"]', 'Attributes sources');
     if (acc?.getAttribute('aria-expanded') === 'true') acc.click();
 }
 
-function openPastDeliveriesAccordion(retry = 0) {
+function openPastDeliveriesAccordion(retry) {
     if (!state.active || retry >= MAX_RETRIES) return;
-    const accordion = findByText('[role="button"]', 'Past deliveries');
-    if (accordion) {
-        if (accordion.getAttribute('aria-expanded') !== 'true') accordion.click();
-    } else setTimeout(() => openPastDeliveriesAccordion(retry + 1), 200);
+    const acc = findByText('[role="button"]', 'Past deliveries');
+    if (acc) { if (acc.getAttribute('aria-expanded') !== 'true') acc.click(); }
+    else setTimeout(() => openPastDeliveriesAccordion(retry + 1), 300);
 }
 
-// ==================== RENDER PANEL ====================
+// ==================== RENDER ====================
 function renderPanel(dhEntries, latestPDL) {
-    if (!state.active) return;
     const body = $('#gs-body');
-    if (!body) return;
+    if (!body || !state.active) return;
 
-    let html = '';
-    html += '<div class="gs-block dh"><div class="gs-label">🔴 Delivery Hints (' + dhEntries.length + ')</div>';
+    let html = '<div class="gs-block dh"><div class="gs-label">🔴 Delivery Hints (' + dhEntries.length + ')</div>';
     if (dhEntries.length) {
         dhEntries.forEach((entry, i) => {
             const val = clean(entry.value);
@@ -514,85 +483,34 @@ function renderPanel(dhEntries, latestPDL) {
     html += '</div>';
 
     body.innerHTML = html;
-    body.querySelectorAll('.gs-translate-btn').forEach((btn) => {
-        btn.addEventListener('click', (e) => { e.stopPropagation(); openBingTranslate(decodeURIComponent(btn.dataset.text)); });
-    });
+    body.querySelectorAll('.gs-translate-btn').forEach(btn => btn.onclick = () => openBingTranslate(decodeURIComponent(btn.dataset.text)));
 
-    const panel = $('#gs-panel');
-    if (panel) {
-        panel.style.display = 'block';
-        setInitialPosition();
-        panel.style.borderColor = '#0ead69';
-        setTimeout(() => { if (panel) panel.style.borderColor = '#00d4ff'; }, 1000);
-    }
-}
-
-// ==================== PANEL MGMT ====================
-function setInitialPosition() {
-    if (state.userDragged) return;
-    const panel = $('#gs-panel');
-    const anchor = $('[class*="jPF-XYLaPtejuJ7hQXRjog"]') || $('.css-bbz95s');
-    if (anchor && panel) {
-        const rect = anchor.getBoundingClientRect();
-        panel.style.left = Math.max(5, rect.left - (panel.offsetWidth || 380) - 10) + 'px';
-        panel.style.top = (window.innerHeight * 0.05) + 'px';
-        panel.style.right = 'auto';
-    }
+    const p = $('#gs-panel');
+    if (p) { p.style.display = 'block'; p.style.borderColor = '#0ead69'; setTimeout(() => p.style.borderColor = '#00d4ff', 1000); }
 }
 
 function createPanel() {
-    destroyPanel();
-    const style = document.createElement('style');
-    style.id = 'gs-panel-css';
-    style.textContent = PANEL_CSS;
-    document.head.appendChild(style);
-
-    const panel = document.createElement('div');
-    panel.id = 'gs-panel';
-    panel.style.display = 'none';
-    panel.innerHTML = `<div id="gs-header"><span class="title">📦 DH & PDL</span><div><button id="gs-min">—</button></div></div><div id="gs-body"><div class="gs-loading">⏳ Waiting for data...</div></div>`;
-    document.body.appendChild(panel);
-
-    setInitialPosition();
-    setupDrag(panel);
-
-    panel.querySelector('#gs-min').addEventListener('click', () => {
-        panel.classList.toggle('minimized');
-        panel.querySelector('#gs-min').textContent = panel.classList.contains('minimized') ? '▢' : '—';
-    });
+    $('#gs-panel')?.remove();
+    const s = document.createElement('style'); s.textContent = PANEL_CSS; document.head.appendChild(s);
+    const p = document.createElement('div'); p.id = 'gs-panel';
+    p.innerHTML = `<div id="gs-header"><span class="title">📦 DH & PDL</span><button id="gs-min">—</button></div><div id="gs-body"><div class="gs-loading">⏳ Waiting for data...</div></div>`;
+    document.body.appendChild(p);
+    p.querySelector('#gs-min').onclick = () => p.classList.toggle('minimized');
     state.gsPanelCreated = true;
+    setupDrag(p);
 }
 
-function destroyPanel() { $('#gs-panel')?.remove(); $('#gs-panel-css')?.remove(); state.gsPanelCreated = false; }
-
-function setupDrag(panel) {
-    const header = panel.querySelector('#gs-header');
-    let dragging = false, startX, startY, startLeft, startTop;
-    header.addEventListener('mousedown', (e) => {
-        if (e.target.tagName === 'BUTTON') return;
-        dragging = true;
-        startX = e.clientX; startY = e.clientY;
-        const rect = panel.getBoundingClientRect();
-        startLeft = rect.left; startTop = rect.top;
-        panel.style.right = 'auto';
-        panel.style.left = startLeft + 'px'; panel.style.top = startTop + 'px';
-        e.preventDefault();
-    });
-    document.addEventListener('mousemove', (e) => {
-        if (!dragging) return;
-        state.userDragged = true;
-        panel.style.left = (startLeft + e.clientX - startX) + 'px';
-        panel.style.top = (startTop + e.clientY - startY) + 'px';
-    }, { signal: state.abortController?.signal });
-    document.addEventListener('mouseup', () => dragging = false, { signal: state.abortController?.signal });
+function setupDrag(p) {
+    const h = p.querySelector('#gs-header');
+    let d = false, x, y, sl, st;
+    h.onmousedown = (e) => { d = true; x = e.clientX; y = e.clientY; sl = p.offsetLeft; st = p.offsetTop; p.style.right = 'auto'; };
+    document.onmousemove = (e) => { if (!d) return; p.style.left = (sl + e.clientX - x) + 'px'; p.style.top = (st + e.clientY - y) + 'px'; };
+    document.onmouseup = () => d = false;
 }
 
 function triggerGSPanel() {
     if (!state.active) return;
-    if (!state.gsPanelCreated) createPanel();
-    const body = $('#gs-body');
-    if (body) body.innerHTML = '<div class="gs-loading">⏳ Opening attributes...</div>';
-    $('#gs-panel').style.display = 'block';
+    createPanel();
     openAttributesAccordion(0);
 }
 
@@ -600,30 +518,22 @@ function fullCleanup() {
     state.active = false;
     stopPolling();
     if (state.dataTimeoutId) clearTimeout(state.dataTimeoutId);
-    state.abortController?.abort();
-    destroyPanel();
-    destroyFloatingDisplay();
-    // Reset state flags
-    state.textFound = false; state.isChecking = false; state.buttonClicked = false;
+    if (state.scraperIntervalId) clearInterval(state.scraperIntervalId);
+    $('#gs-panel')?.remove();
+    state.floatingDisplay?.remove();
+    // Reset flags
+    state.textFound = false; state.waitingForData = false; state.buttonClicked = false;
     state.sharedDeliveryClicked = false; state.editDetailsClicked = false;
-    state.waitingForData = false; state.caseTypeDetected = false;
-    state.gsPanelCreated = false; state.userDragged = false;
     state.bdp.received = false;
     setTimeout(startFresh, 500);
 }
 
-function startFresh() {
-    state.abortController = new AbortController();
-    state.active = true;
-    startPolling();
-}
+function startFresh() { state.active = true; startPolling(); }
 
 function initialize() {
     setupInterceptors();
     startFresh();
-    document.addEventListener('click', (e) => {
-        if (e.target?.id === 'submit-btn') setTimeout(fullCleanup, 100);
-    }, true);
+    document.addEventListener('click', (e) => { if (e.target?.id === 'submit-btn') fullCleanup(); }, true);
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize);
