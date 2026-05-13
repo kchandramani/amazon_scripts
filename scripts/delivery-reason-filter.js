@@ -94,7 +94,7 @@
         Object.assign(panel.style, {
             position: 'fixed',
             zIndex: '999999',
-            background: 'rgba(26, 26, 46, 0.15)', // Original Low Opacity
+            background: 'rgba(26, 26, 46, 0.15)', 
             backdropFilter: 'blur(6px)',
             WebkitBackdropFilter: 'blur(6px)',
             border: '1px solid rgba(255, 255, 255, 0.15)',
@@ -104,7 +104,7 @@
             fontFamily: 'Arial, sans-serif',
             minWidth: '260px',
             maxWidth: '380px',
-            color: '#222', // Original Dark Text
+            color: '#222', 
             userSelect: 'none',
             maxHeight: '80vh',
             overflowY: 'auto'
@@ -144,7 +144,6 @@
         header.append(title, headerRight);
         panel.appendChild(header);
 
-        // Containers for Reason and Defect
         const reasonContainer = document.createElement('div');
         reasonContainer.id = 'reason-container';
         
@@ -169,18 +168,20 @@
         const rBox = document.getElementById('reason-container');
         const dBox = document.getElementById('defect-container');
 
+        // Reasons -> Green when active, Gray when inactive
         Object.keys(reasonBlocksMap).forEach(reason => {
             if (!(reason in reasonStates)) reasonStates[reason] = true;
-            rBox.appendChild(createBtnRow(reason, reasonBlocksMap, reasonStates));
+            rBox.appendChild(createBtnRow(reason, reasonBlocksMap, reasonStates, 'reason'));
         });
 
+        // Defects -> Red when active, Gray when inactive
         Object.keys(defectBlocksMap).forEach(defect => {
             if (!(defect in defectStates)) defectStates[defect] = true;
-            dBox.appendChild(createBtnRow(defect, defectBlocksMap, defectStates));
+            dBox.appendChild(createBtnRow(defect, defectBlocksMap, defectStates, 'defect'));
         });
     }
 
-    function createBtnRow(label, map, stateRef) {
+    function createBtnRow(label, map, stateRef, type) {
         const row = document.createElement('div');
         row.style.cssText = 'display:flex; align-items:center; margin-bottom:6px; gap:8px;';
 
@@ -193,14 +194,24 @@
         });
 
         const updateStyle = () => {
-            if (stateRef[label]) {
-                btn.style.background = 'rgba(14, 107, 14, 0.8)';
-                btn.style.borderColor = 'rgba(76, 175, 80, 0.9)';
-                btn.style.color = '#ffffff';
+            const isActive = stateRef[label];
+            if (isActive) {
+                if (type === 'reason') {
+                    // Reason Active: Green
+                    btn.style.background = 'rgba(14, 107, 14, 0.8)';
+                    btn.style.borderColor = 'rgba(76, 175, 80, 0.9)';
+                    btn.style.color = '#ffffff';
+                } else {
+                    // Defect Active: Red
+                    btn.style.background = 'rgba(107, 14, 14, 0.8)';
+                    btn.style.borderColor = 'rgba(244, 67, 54, 0.9)';
+                    btn.style.color = '#ffffff';
+                }
             } else {
-                btn.style.background = 'rgba(107, 14, 14, 0.8)';
-                btn.style.borderColor = 'rgba(244, 67, 54, 0.9)';
-                btn.style.color = '#ffcccc';
+                // Both Inactive: Gray
+                btn.style.background = 'rgba(80, 80, 80, 0.7)';
+                btn.style.borderColor = 'rgba(120, 120, 120, 0.8)';
+                btn.style.color = '#cccccc';
             }
         };
 
@@ -219,7 +230,7 @@
         return row;
     }
 
-    /* ── Restore & Draggable (Original Styles) ─────────── */
+    /* ── Restore & Draggable ─────────── */
 
     function showRestoreTab() {
         let tab = document.getElementById('del-filter-restore');
