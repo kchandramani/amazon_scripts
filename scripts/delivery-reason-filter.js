@@ -10,6 +10,12 @@
     let buildTimer = null;
     let wasDragged = false;
 
+    // Helper to find the main delivery container to hide/show
+    function getWrapper(block) {
+        // We look for the parent div with class 'css-s8qwt0' which contains the delivery + the divider
+        return block.closest('.css-s8qwt0') || block;
+    }
+
     function getDeliveryBlocks() {
         return document.querySelectorAll('div.css-i8ykvz');
     }
@@ -41,12 +47,6 @@
         return null;
     }
 
-    function getLocationButton(block) {
-        return block.querySelector('button.css-xxe6ha') ||
-               block.querySelector('button[type="button"] svg[data-testid="LocationOffOutlinedIcon"]')?.closest('button') ||
-               block.querySelector('button[type="button"]');
-    }
-
     function buildMaps() {
         reasonBlocksMap = {};
         defectBlocksMap = {};
@@ -66,10 +66,22 @@
         });
     }
 
-    function clickLocationButtons(blocks) {
-        blocks.forEach(block => {
-            const btn = getLocationButton(block);
-            if (btn) btn.click();
+    // New logic: Directly hide/show elements instead of clicking buttons
+    function updateVisibility() {
+        // Update Reason visibility
+        Object.keys(reasonBlocksMap).forEach(reason => {
+            const isVisible = reasonStates[reason];
+            reasonBlocksMap[reason].forEach(block => {
+                getWrapper(block).style.display = isVisible ? 'block' : 'none';
+            });
+        });
+
+        // Update Defect visibility
+        Object.keys(defectBlocksMap).forEach(defect => {
+            const isVisible = defectStates[defect];
+            defectBlocksMap[defect].forEach(block => {
+                getWrapper(block).style.display = isVisible ? 'block' : 'none';
+            });
         });
     }
 
@@ -168,20 +180,21 @@
         const rBox = document.getElementById('reason-container');
         const dBox = document.getElementById('defect-container');
 
-        // Reasons -> Green when active, Gray when inactive
         Object.keys(reasonBlocksMap).forEach(reason => {
             if (!(reason in reasonStates)) reasonStates[reason] = true;
-            rBox.appendChild(createBtnRow(reason, reasonBlocksMap, reasonStates, 'reason'));
+            rBox.appendChild(createBtnRow(reason, reasonStates, 'reason'));
         });
 
-        // Defects -> Red when active, Gray when inactive
         Object.keys(defectBlocksMap).forEach(defect => {
             if (!(defect in defectStates)) defectStates[defect] = true;
-            dBox.appendChild(createBtnRow(defect, defectBlocksMap, defectStates, 'defect'));
+            dBox.appendChild(createBtnRow(defect, defectStates, 'defect'));
         });
+        
+        // Initial visibility set
+        updateVisibility();
     }
 
-    function createBtnRow(label, map, stateRef, type) {
+    function createBtnRow(label, stateRef, type) {
         const row = document.createElement('div');
         row.style.cssText = 'display:flex; align-items:center; margin-bottom:6px; gap:8px;';
 
@@ -193,39 +206,37 @@
             wordBreak: 'break-all', transition: 'all 0.2s ease'
         });
 
-        const updateStyle = () => {
+        const updateButtonStyle = () => {
             const isActive = stateRef[label];
             if (isActive) {
                 if (type === 'reason') {
-                    // Reason Active: Green
-                    btn.style.background = 'rgba(14, 107, 14, 0.8)';
+                    btn.style.background = 'rgba(14, 107, 14, 0.8)'; // Green
                     btn.style.borderColor = 'rgba(76, 175, 80, 0.9)';
                     btn.style.color = '#ffffff';
                 } else {
-                    // Defect Active: Red
-                    btn.style.background = 'rgba(107, 14, 14, 0.8)';
+                    btn.style.background = 'rgba(107, 14, 14, 0.8)'; // Red
                     btn.style.borderColor = 'rgba(244, 67, 54, 0.9)';
                     btn.style.color = '#ffffff';
                 }
             } else {
-                // Both Inactive: Gray
-                btn.style.background = 'rgba(80, 80, 80, 0.7)';
+                btn.style.background = 'rgba(80, 80, 80, 0.7)'; // Gray
                 btn.style.borderColor = 'rgba(120, 120, 120, 0.8)';
                 btn.style.color = '#cccccc';
             }
         };
 
         btn.onclick = () => {
-            clickLocationButtons(map[label]);
             stateRef[label] = !stateRef[label];
-            updateStyle();
+            updateButtonStyle();
+            updateVisibility(); // Triggers the actual hide/show of the deliveries
         };
 
+        const map = type === 'reason' ? reasonBlocksMap : defectBlocksMap;
         const count = document.createElement('span');
         count.textContent = `(${map[label].length})`;
         count.style.cssText = 'fontSize: 11px; color: #555; whiteSpace: nowrap;';
 
-        updateStyle();
+        updateButtonStyle();
         row.append(btn, count);
         return row;
     }
