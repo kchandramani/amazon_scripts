@@ -10,12 +10,6 @@
     let buildTimer = null;
     let wasDragged = false;
 
-    // Helper to find the main delivery container to hide/show
-    function getWrapper(block) {
-        // We look for the parent div with class 'css-s8qwt0' which contains the delivery + the divider
-        return block.closest('.css-s8qwt0') || block;
-    }
-
     function getDeliveryBlocks() {
         return document.querySelectorAll('div.css-i8ykvz');
     }
@@ -47,6 +41,17 @@
         return null;
     }
 
+    /**
+     * UPDATED SELECTOR: 
+     * Specifically looks for the button containing the Location Icon.
+     * This prevents clicking the "CameraAltIcon" (Photo button).
+     */
+    function getLocationButton(block) {
+        return block.querySelector('button svg[data-testid="LocationOnIcon"]')?.closest('button') ||
+               block.querySelector('button svg[data-testid="LocationOffOutlinedIcon"]')?.closest('button') ||
+               block.querySelector('button.css-xxe6ha'); // Fallback
+    }
+
     function buildMaps() {
         reasonBlocksMap = {};
         defectBlocksMap = {};
@@ -66,22 +71,13 @@
         });
     }
 
-    // New logic: Directly hide/show elements instead of clicking buttons
-    function updateVisibility() {
-        // Update Reason visibility
-        Object.keys(reasonBlocksMap).forEach(reason => {
-            const isVisible = reasonStates[reason];
-            reasonBlocksMap[reason].forEach(block => {
-                getWrapper(block).style.display = isVisible ? 'block' : 'none';
-            });
-        });
-
-        // Update Defect visibility
-        Object.keys(defectBlocksMap).forEach(defect => {
-            const isVisible = defectStates[defect];
-            defectBlocksMap[defect].forEach(block => {
-                getWrapper(block).style.display = isVisible ? 'block' : 'none';
-            });
+    // OLD FILTER METHOD: Clicking the site's own buttons
+    function clickLocationButtons(blocks) {
+        blocks.forEach(block => {
+            const btn = getLocationButton(block);
+            if (btn) {
+                btn.click();
+            }
         });
     }
 
@@ -124,10 +120,7 @@
 
         const header = document.createElement('div');
         Object.assign(header.style, {
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '10px'
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'
         });
 
         const title = document.createElement('span');
@@ -182,19 +175,16 @@
 
         Object.keys(reasonBlocksMap).forEach(reason => {
             if (!(reason in reasonStates)) reasonStates[reason] = true;
-            rBox.appendChild(createBtnRow(reason, reasonStates, 'reason'));
+            rBox.appendChild(createBtnRow(reason, reasonBlocksMap, reasonStates, 'reason'));
         });
 
         Object.keys(defectBlocksMap).forEach(defect => {
             if (!(defect in defectStates)) defectStates[defect] = true;
-            dBox.appendChild(createBtnRow(defect, defectStates, 'defect'));
+            dBox.appendChild(createBtnRow(defect, defectBlocksMap, defectStates, 'defect'));
         });
-        
-        // Initial visibility set
-        updateVisibility();
     }
 
-    function createBtnRow(label, stateRef, type) {
+    function createBtnRow(label, map, stateRef, type) {
         const row = document.createElement('div');
         row.style.cssText = 'display:flex; align-items:center; margin-bottom:6px; gap:8px;';
 
@@ -206,7 +196,7 @@
             wordBreak: 'break-all', transition: 'all 0.2s ease'
         });
 
-        const updateButtonStyle = () => {
+        const updateStyle = () => {
             const isActive = stateRef[label];
             if (isActive) {
                 if (type === 'reason') {
@@ -226,17 +216,16 @@
         };
 
         btn.onclick = () => {
+            clickLocationButtons(map[label]); // USES OLD CLICK METHOD
             stateRef[label] = !stateRef[label];
-            updateButtonStyle();
-            updateVisibility(); // Triggers the actual hide/show of the deliveries
+            updateStyle();
         };
 
-        const map = type === 'reason' ? reasonBlocksMap : defectBlocksMap;
         const count = document.createElement('span');
         count.textContent = `(${map[label].length})`;
         count.style.cssText = 'fontSize: 11px; color: #555; whiteSpace: nowrap;';
 
-        updateButtonStyle();
+        updateStyle();
         row.append(btn, count);
         return row;
     }
