@@ -89,7 +89,7 @@
         },
         {
             "name": "Delivery Reason Filter",
-            "file": "delivery-reason-filter.js",
+            "file": "not-in-use-delivery-reason-filter.js",
             "enabled": true,
             "priority": 11,
             "description": "Filter deliveries by reason with toggle panel",
