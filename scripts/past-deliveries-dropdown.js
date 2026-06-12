@@ -4,20 +4,36 @@
 (function() {
     'use strict';
 
-    // Helper function to safely wait for an element to appear in the DOM
-    function waitForElement(selector, text, timeout = 2000) {
+    // Helper to check if an element is actually visible to the user
+    function isElementVisible(el) {
+        if (!el) return false;
+        const rect = el.getBoundingClientRect();
+        return (
+            rect.width > 0 &&
+            rect.height > 0 &&
+            window.getComputedStyle(el).display !== 'none' &&
+            window.getComputedStyle(el).visibility !== 'hidden'
+        );
+    }
+
+    // Safely wait for a truly visible option to appear
+    function waitForVisibleOption(text, timeout = 2000) {
         return new Promise((resolve, reject) => {
             const startTime = Date.now();
             const interval = setInterval(() => {
-                const elements = document.querySelectorAll(selector);
-                const found = Array.from(elements).find(el => el.textContent.trim() === text);
+                // Target typical dropdown menu containers/items specifically
+                const elements = document.querySelectorAll('[role="option"], li, [class*="menu"], [class*="dropdown"]');
+                
+                const found = Array.from(elements).find(el => {
+                    return el.textContent.trim() === text && isElementVisible(el);
+                });
                 
                 if (found) {
                     clearInterval(interval);
                     resolve(found);
                 } else if (Date.now() - startTime > timeout) {
                     clearInterval(interval);
-                    reject(new Error(`Timeout waiting for ${selector} with text "${text}"`));
+                    reject(new Error(`Timeout waiting for visible option: "${text}"`));
                 }
             }, 50);
         });
@@ -39,41 +55,46 @@
             pastDeliveries.scrollIntoView({ behavior: "smooth", block: "center" });
             pastDeliveries.click();
 
-            // 2. Wait for the Attribute combobox to become available after the view updates
-            // (Replaced the fixed 1500ms delay with a safe loop)
-            await new Promise(r => setTimeout(r, 1000)); 
+            // Give the page a moment to switch tabs/views completely
+            await new Promise(r => setTimeout(r, 1200)); 
 
+            // 2. Find the correct visible Attribute combobox
             const comboboxes = document.querySelectorAll('div[role="combobox"]');
-            const attributeBox = Array.from(comboboxes).find(el => el.textContent.includes('Attribute'));
+            const attributeBox = Array.from(comboboxes).find(el => el.textContent.includes('Attribute') && isElementVisible(el));
 
             if (!attributeBox) {
-                console.warn("❌ 'Attribute' combobox not found.");
+                console.warn("❌ Visible 'Attribute' combobox not found.");
                 return;
             }
 
             // 3. Open the Attribute dropdown
             console.log("🔓 Opening Attribute dropdown...");
+            attributeBox.focus();
             attributeBox.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true }));
 
-            // 4. STRATEGIC FIX: Wait for the specific option inside appropriate tags ONLY
-            // Instead of searching all divs/spans globally, we narrow it down.
-            const countOption = await waitForElement('div[role="option"], li', 'Count');
-            console.log("🎯 Found Count option, clicking...");
+            // 4. Find the dynamic 'Count' option that is VISIBLE
+            const countOption = await waitForVisibleOption('Count');
+            console.log("🎯 Found valid Count option, clicking...");
             countOption.click();
 
-            // 5. Find the next combobox that now handles 'Recent 10'
-            await new Promise(r => setTimeout(r, 200)); 
+            // Give the UI a moment to register the selection and update the DOM
+            await new Promise(r => setTimeout(r, 400)); 
+
+            // 5. Find the next visible combobox handling 'Recent 10'
             const comboboxes2 = document.querySelectorAll('div[role="combobox"]');
-            const recentBox = Array.from(comboboxes2).find(el => el.textContent.includes('Recent 10'));
+            const recentBox = Array.from(comboboxes2).find(el => el.textContent.includes('Recent 10') && isElementVisible(el));
 
             if (recentBox) {
                 console.log("🔓 Opening Recent 10 dropdown...");
+                recentBox.focus();
                 recentBox.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true }));
 
-                // 6. STRATEGIC FIX: Target 'All' cleanly
-                const allOption = await waitForElement('div[role="option"], li', 'All');
-                console.log("🎯 Found All option, clicking...");
+                // 6. Find the dynamic 'All' option that is VISIBLE
+                const allOption = await waitForVisibleOption('All');
+                console.log("🎯 Found valid All option, clicking...");
                 allOption.click();
+            } else {
+                console.warn("❌ 'Recent 10' combobox not found or not visible yet.");
             }
 
         } catch (error) {
@@ -82,6 +103,9 @@
     }
 
     document.addEventListener("keydown", function(event) {
+        // Ignore if typing inside an input or textarea
+        if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
+
         if (event.key.toLowerCase() === "q") {
             console.log("🚀 Q key pressed — starting...");
             clickPastDeliveriesThenAttributeDropdown();
