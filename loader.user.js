@@ -5,6 +5,7 @@
 // @description  Single loader for all GeoStudio pages including iframes
 // @author       kchandramani
 // @match        https://na.geostudio.last-mile.amazon.dev/*
+// @match        https://na.geostudio.last-mile.amazon.dev/*
 // @match        https://eu.geostudio.last-mile.amazon.dev/*
 // @match        https://fe.geostudio.last-mile.amazon.dev/*
 // @match        https://na.templates.geostudio.last-mile.amazon.dev/*
