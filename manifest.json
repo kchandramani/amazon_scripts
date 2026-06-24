@@ -16,6 +16,22 @@
             "matchPatterns": ["geoeditor.app.amazon.dev"]
         },
         {
+            "name": "PL Paste - Dynemic PL Selection",
+            "file": "pl-paste-button.js",
+            "enabled": true,
+            "priority": 1,
+            "description": "Detect PL automaticaly and show paste button",
+            "matchPatterns": ["geoeditor.app.amazon.dev"]
+        },
+        {
+            "name": "RE to PL1 Paste",
+            "file": "re-geocode-to-pl1.js ",
+            "enabled": true,
+            "priority": 1,
+            "description": "Paste RE gc to PL1 on single click",
+            "matchPatterns": ["geoeditor.app.amazon.dev"]
+        },
+        {
             "name": "Middle Button Observer",
             "file": "outlier-live-middle-button-observer.js",
             "enabled": true,
