@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         🔧 GeoStudio Scripts - Master Loader
+// @name         GeoStudio Scripts
 // @namespace    https://github.com/kchandramani/amazon_scripts
 // @version      4.0.0
 // @description  Single loader for all GeoStudio pages including iframes
@@ -126,6 +126,7 @@
         document.body.appendChild(o);
     }
 
+    // ── Hide Overlay ──
     function hideOverlay() {
         if (IS_IFRAME) return;
         var o = document.getElementById('gs-overlay');
@@ -158,7 +159,6 @@
                 else failed++;
             } else {
                 logWarn('No cache: ' + s.name);
-                // Download individually
                 fetch(SCRIPTS_URL + '/' + s.file).then(function (code) {
                     setCache('script_' + s.file, code);
                     runScript(code, s.name + ' (downloaded)');
@@ -264,12 +264,16 @@
     }
 
     // ══════════════════════════════════════════
-    //  FORCE UPDATE
+    //  FORCE UPDATE (Clears Cache and Re-downloads Everything)
     // ══════════════════════════════════════════
 
     async function forceUpdate() {
         try {
-            showOverlay('Force updating...');
+            showOverlay('Clearing cache & downloading latest...');
+
+            // Wipe out current cache entirely
+            GM_listValues().forEach(function (k) { GM_deleteValue(k); });
+            console.log('🗑️ Cache wiped out for clean download!');
             setCache('manifestVersion', '0');
 
             var raw = await fetch(MANIFEST_URL);
@@ -284,18 +288,16 @@
                 } catch (e) { }
             }
 
+            setCache('firstRunComplete', true);
             hideOverlay();
             location.reload();
         } catch (e) {
             hideOverlay();
-            alert('❌ Update failed!');
+            alert('❌ Force update failed!');
         }
     }
 
-    // ══════════════════════════════════════════
-    //  KEYBOARD SHORTCUTS
-    // ══════════════════════════════════════════
-
+    // ── Keyboard Shortcuts ──
     document.addEventListener('keydown', function (e) {
         if (e.ctrlKey && e.shiftKey && e.code === 'KeyC') {
             e.preventDefault();
@@ -315,25 +317,7 @@
 
     if (!IS_IFRAME) {
         GM_registerMenuCommand('🔄 Force Update', function () {
-            if (confirm('Download latest?')) forceUpdate();
-        });
-        GM_registerMenuCommand('🗑️ Clear Cache & Reload', function () {
-            if (confirm('Clear all?')) {
-                GM_listValues().forEach(function (k) { GM_deleteValue(k); });
-                location.reload();
-            }
-        });
-        GM_registerMenuCommand('📋 Status', function () {
-            var m = getManifest();
-            if (!m) { alert('No scripts cached.'); return; }
-            var s = '🔧 GeoStudio Scripts v' + getCache('manifestVersion') + '\n\n';
-            m.scripts.forEach(function (sc) {
-                var cached = getCache('script_' + sc.file) ? '💾' : '⚠️';
-                var on = sc.enabled ? '✅' : '❌';
-                var page = matchesPage(sc.matchPatterns) ? '🟢' : '🔴';
-                s += on + cached + page + ' ' + sc.name + '\n';
-            });
-            alert(s);
+            if (confirm('Clear cache and pull latest scripts?')) forceUpdate();
         });
     }
 
@@ -348,12 +332,10 @@
         if (IS_TEMPLATE) log('📋 Template page');
         if (IS_PLACE) log('🗺️ Place page');
 
-        // First time?
         var isFirst = getCache('firstRunComplete') !== true;
 
         if (isFirst) {
             if (IS_IFRAME) {
-                // Wait for parent to download
                 log('⏳ Waiting for parent to download...');
                 var tries = 0;
                 var waitTimer = setInterval(function () {
@@ -375,7 +357,6 @@
             return;
         }
 
-        // Has cache
         var manifest = getManifest();
 
         if (!manifest) {
@@ -389,16 +370,13 @@
             return;
         }
 
-        // Kill switch
         if (manifest.globalSettings && manifest.globalSettings.killSwitch) {
             logWarn('Kill switch ON');
             return;
         }
 
-        // Load scripts
         loadFromCache(manifest);
 
-        // Update check (parent only)
         if (!IS_IFRAME) {
             checkUpdates();
         }
