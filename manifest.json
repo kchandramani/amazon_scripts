@@ -25,7 +25,7 @@
         },
         {
             "name": "RE to PL1 Paste",
-            "file": "re-geocode-to-pl1.js ",
+            "file": "re-geocode-to-pl1.js",
             "enabled": true,
             "priority": 3,
             "description": "Paste RE gc to PL1 on single click",
