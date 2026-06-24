@@ -62,7 +62,7 @@
         // Create button matching your exact visual design tokens
         const button = document.createElement('button');
         button.textContent = 'RE ➔ P1';
-        button.title = "Copy RE Geocode to Parking Location 1";
+        //button.title = "Copy RE Geocode to Parking Location 1";
 
         button.style.padding = '5px 10px';
         button.style.backgroundColor = 'rgb(74, 144, 226)';
