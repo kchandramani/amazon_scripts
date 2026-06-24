@@ -19,7 +19,7 @@
             "name": "PL Paste - Dynemic PL Selection",
             "file": "pl-paste-button.js",
             "enabled": true,
-            "priority": 1,
+            "priority": 2,
             "description": "Detect PL automaticaly and show paste button",
             "matchPatterns": ["geoeditor.app.amazon.dev"]
         },
@@ -27,7 +27,7 @@
             "name": "RE to PL1 Paste",
             "file": "re-geocode-to-pl1.js ",
             "enabled": true,
-            "priority": 1,
+            "priority": 3,
             "description": "Paste RE gc to PL1 on single click",
             "matchPatterns": ["geoeditor.app.amazon.dev"]
         },
@@ -35,7 +35,7 @@
             "name": "Middle Button Observer",
             "file": "outlier-live-middle-button-observer.js",
             "enabled": true,
-            "priority": 2,
+            "priority": 4,
             "description": "Adds floating middle button to copy DP geocode to RE geocode",
             "matchPatterns": ["geoeditor.app.amazon.dev"]
         },
@@ -43,7 +43,7 @@
             "name": "Auto Dismiss Validation Alert",
             "file": "auto-dismiss-alert.js",
             "enabled": true,
-            "priority": 3,
+            "priority": 5,
             "description": "Automatically dismisses Validation Failed alerts",
             "matchPatterns": ["na.geoeditor.app.amazon.dev"]
         },
@@ -51,7 +51,7 @@
             "name": "Auto Drop Down Selection STF",
             "file": "auto-dropdown-stf.js",
             "enabled": true,
-            "priority": 4,
+            "priority": 6,
             "description": "Auto select options for Save/Sync/NA scenarios (Outlier template)",
             "matchPatterns": ["templates.geostudio.last-mile.amazon.dev/outlier"]
         },
@@ -59,7 +59,7 @@
             "name": "CaseType Observer & Auto-Click",
             "file": "casetype-observer.js",
             "enabled": true,
-            "priority": 5,
+            "priority": 7,
             "description": "Observes CaseType changes, displays info, auto-clicks buttons",
             "matchPatterns": ["na.geoeditor.app.amazon.dev"]
         },
@@ -67,7 +67,7 @@
             "name": "Past Deliveries & Attribute Dropdown",
             "file": "past-deliveries-dropdown.js",
             "enabled": true,
-            "priority": 6,
+            "priority": 8,
             "description": "Press Q to click Past Deliveries and open Attribute dropdown",
             "matchPatterns": ["geoeditor.app.amazon.dev"]
         },
@@ -75,7 +75,7 @@
             "name": "GS 2.0 Remarks - US",
             "file": "remarks-us.js",
             "enabled": true,
-            "priority": 7,
+            "priority": 9,
             "description": "US specific remarks dropdown",
             "matchPatterns": ["templates.geostudio.last-mile.amazon.dev"]
         },
@@ -83,7 +83,7 @@
             "name": "GS 2.0 Remarks - General",
             "file": "remarks-general.js",
             "enabled": true,
-            "priority": 8,
+            "priority": 10,
             "description": "General remarks dropdown",
             "matchPatterns": ["templates.geostudio.last-mile.amazon.dev"]
         },
@@ -91,7 +91,7 @@
             "name": "Left Paste Buttons",
             "file": "left-paste-buttons.js",
             "enabled": true,
-            "priority": 9,
+            "priority": 11,
             "description": "Adds paste buttons to left of geocode inputs",
             "matchPatterns": ["geoeditor.app.amazon.dev"]
         },
@@ -99,7 +99,7 @@
             "name": "Right Copy Buttons",
             "file": "right-copy-buttons.js",
             "enabled": true,
-            "priority": 10,
+            "priority": 12,
             "description": "Adds copy buttons to right of geocode inputs",
             "matchPatterns": ["geoeditor.app.amazon.dev"]
         },
@@ -107,7 +107,7 @@
             "name": "Delivery Reason Filter",
             "file": "not-in-use-delivery-reason-filter.js",
             "enabled": true,
-            "priority": 11,
+            "priority": 13,
             "description": "Filter deliveries by reason with toggle panel",
             "matchPatterns": ["geoeditor.app.amazon.dev"]
         },
@@ -115,7 +115,7 @@
             "name": "WW LIVE Autofill Bucket",
             "file": "ww-live-autofill.js",
             "enabled": true,
-            "priority": 12,
+            "priority": 14,
             "description": "Auto select Sv-BD, Sv-RD, UTL, NAK etc (Live template)",
             "matchPatterns": ["templates.geostudio.last-mile.amazon.dev/live"]
         },
@@ -123,7 +123,7 @@
             "name": "Auditbook TimeSheet Script",
             "file": "auditBook-productivity-calculator.js",
             "enabled": true,
-            "priority": 13,
+            "priority": 15,
             "description": "Your auditbook script timesheet",
             "matchPatterns": ["auditbook-na.corp.amazon.com/searchTimeSheet"]
         }
