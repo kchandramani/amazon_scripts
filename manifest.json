@@ -126,7 +126,7 @@
             "priority": 15,
             "description": "Your auditbook script timesheet",
             "matchPatterns": ["auditbook-na.corp.amazon.com/searchTimeSheet"]
-        }
+        },
         {
             "name": "Parking Distance Calculator P1 P2",
             "file": "p1-p2-distance-calc.js",
