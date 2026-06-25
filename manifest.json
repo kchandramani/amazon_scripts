@@ -106,7 +106,7 @@
         {
             "name": "Delivery Reason Filter",
             "file": "not-in-use-delivery-reason-filter.js",
-            "enabled": true,
+            "enabled": false,
             "priority": 13,
             "description": "Filter deliveries by reason with toggle panel",
             "matchPatterns": ["geoeditor.app.amazon.dev"]
@@ -114,7 +114,7 @@
         {
             "name": "WW LIVE Autofill Bucket",
             "file": "ww-live-autofill.js",
-            "enabled": true,
+            "enabled": false,
             "priority": 14,
             "description": "Auto select Sv-BD, Sv-RD, UTL, NAK etc (Live template)",
             "matchPatterns": ["templates.geostudio.last-mile.amazon.dev/live"]
@@ -122,10 +122,19 @@
         {
             "name": "Auditbook TimeSheet Script",
             "file": "auditBook-productivity-calculator.js",
-            "enabled": true,
+            "enabled": false,
             "priority": 15,
             "description": "Your auditbook script timesheet",
             "matchPatterns": ["auditbook-na.corp.amazon.com/searchTimeSheet"]
         }
+        {
+            "name": "Parking Distance Calculator P1 P2",
+            "file": "p1-p2-distance-calc.js",
+            "enabled": true,
+            "priority": 16,
+            "description": "P1 P2 Distance Calc",
+            "matchPatterns": ["geoeditor.app.amazon.dev"]
+        }
+        
     ]
 }
