@@ -13,7 +13,7 @@
             "enabled": true,
             "priority": 1,
             "description": "Press A for 25m, Press Z for 50m Geofence",
-            "matchPatterns": ["geoeditor.app.amazon.dev"]
+            "matchPatterns": ["geoeditor.app.amazon.dev","geostudio.last-mile.amazon.dev"]
         },
         {
             "name": "PL Paste - Dynemic PL Selection",
@@ -21,7 +21,7 @@
             "enabled": true,
             "priority": 2,
             "description": "Detect PL automaticaly and show paste button",
-            "matchPatterns": ["geoeditor.app.amazon.dev"]
+            "matchPatterns": ["geoeditor.app.amazon.dev","geostudio.last-mile.amazon.dev"]
         },
         {
             "name": "RE to PL1 Paste",
@@ -29,7 +29,7 @@
             "enabled": true,
             "priority": 3,
             "description": "Paste RE gc to PL1 on single click",
-            "matchPatterns": ["geoeditor.app.amazon.dev"]
+            "matchPatterns": ["geoeditor.app.amazon.dev","geostudio.last-mile.amazon.dev"]
         },
         {
             "name": "Middle Button Observer",
@@ -37,7 +37,7 @@
             "enabled": true,
             "priority": 4,
             "description": "Adds floating middle button to copy DP geocode to RE geocode",
-            "matchPatterns": ["geoeditor.app.amazon.dev"]
+            "matchPatterns": ["geoeditor.app.amazon.dev","geostudio.last-mile.amazon.dev"]
         },
         {
             "name": "Auto Dismiss Validation Alert",
@@ -45,7 +45,7 @@
             "enabled": true,
             "priority": 5,
             "description": "Automatically dismisses Validation Failed alerts",
-            "matchPatterns": ["na.geoeditor.app.amazon.dev"]
+            "matchPatterns": ["na.geoeditor.app.amazon.dev","geostudio.last-mile.amazon.dev"]
         },
         {
             "name": "Auto Drop Down Selection STF",
@@ -61,7 +61,7 @@
             "enabled": true,
             "priority": 7,
             "description": "Observes CaseType changes, displays info, auto-clicks buttons",
-            "matchPatterns": ["na.geoeditor.app.amazon.dev"]
+            "matchPatterns": ["na.geoeditor.app.amazon.dev","geostudio.last-mile.amazon.dev"]
         },
         {
             "name": "Past Deliveries & Attribute Dropdown",
@@ -69,7 +69,7 @@
             "enabled": true,
             "priority": 8,
             "description": "Press Q to click Past Deliveries and open Attribute dropdown",
-            "matchPatterns": ["geoeditor.app.amazon.dev"]
+            "matchPatterns": ["geoeditor.app.amazon.dev","geostudio.last-mile.amazon.dev"]
         },
         {
             "name": "GS 2.0 Remarks - US",
@@ -93,7 +93,7 @@
             "enabled": true,
             "priority": 11,
             "description": "Adds paste buttons to left of geocode inputs",
-            "matchPatterns": ["geoeditor.app.amazon.dev"]
+            "matchPatterns": ["geoeditor.app.amazon.dev","geostudio.last-mile.amazon.dev"]
         },
         {
             "name": "Right Copy Buttons",
@@ -101,7 +101,7 @@
             "enabled": true,
             "priority": 12,
             "description": "Adds copy buttons to right of geocode inputs",
-            "matchPatterns": ["geoeditor.app.amazon.dev"]
+            "matchPatterns": ["geoeditor.app.amazon.dev","geostudio.last-mile.amazon.dev"]
         },
         {
             "name": "Delivery Reason Filter",
@@ -109,7 +109,7 @@
             "enabled": true,
             "priority": 13,
             "description": "Filter deliveries by reason with toggle panel",
-            "matchPatterns": ["geoeditor.app.amazon.dev"]
+            "matchPatterns": ["geoeditor.app.amazon.dev","geostudio.last-mile.amazon.dev"]
         },
         {
             "name": "WW LIVE Autofill Bucket",
@@ -133,7 +133,7 @@
             "enabled": true,
             "priority": 16,
             "description": "P1 P2 Distance Calc",
-            "matchPatterns": ["geoeditor.app.amazon.dev"]
+            "matchPatterns": ["geoeditor.app.amazon.dev","geostudio.last-mile.amazon.dev"]
         }
     ]
 }
