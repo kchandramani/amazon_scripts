@@ -106,7 +106,7 @@
         // Ignore if typing inside an input or textarea
         if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
 
-        if (event.key.toLowerCase() === "q") {
+        if (event.key.toLowerCase() === "p") {
             console.log("🚀 Q key pressed — starting...");
             clickPastDeliveriesThenAttributeDropdown();
         }
