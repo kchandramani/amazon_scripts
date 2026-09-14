@@ -1,12 +1,10 @@
-// Q -> Past deliveries: Count / All
-// W -> Past deliveries: Reasons / Other + Unattended
-// E -> Past deliveries: Reasons / Near Door
- 
+// Click Past Deliveries and Open Attribute Dropdown
+// Press Q to trigger
+
 (function() {
     'use strict';
- 
-    // ---------- Helpers ----------
- 
+
+    // Helper to check if an element is actually visible to the user
     function isElementVisible(el) {
         if (!el) return false;
         const rect = el.getBoundingClientRect();
@@ -17,17 +15,19 @@
             window.getComputedStyle(el).visibility !== 'hidden'
         );
     }
- 
+
+    // Safely wait for a truly visible option to appear
     function waitForVisibleOption(text, timeout = 2000) {
         return new Promise((resolve, reject) => {
             const startTime = Date.now();
             const interval = setInterval(() => {
+                // Target typical dropdown menu containers/items specifically
                 const elements = document.querySelectorAll('[role="option"], li, [class*="menu"], [class*="dropdown"]');
- 
+                
                 const found = Array.from(elements).find(el => {
                     return el.textContent.trim() === text && isElementVisible(el);
                 });
- 
+                
                 if (found) {
                     clearInterval(interval);
                     resolve(found);
@@ -38,122 +38,77 @@
             }, 50);
         });
     }
- 
-    // Ensures the "Past deliveries" accordion is open. Returns true if ready.
-    async function ensurePastDeliveriesOpen() {
-        const pastDeliveries = Array.from(document.querySelectorAll('p.css-1oqpb4x')).find(
-            el => el.innerText.trim() === "Past deliveries"
-        );
- 
-        if (!pastDeliveries) {
-            console.warn("❌ 'Past deliveries' not found.");
-            return false;
-        }
- 
-        const header = pastDeliveries.closest('[role="button"][aria-expanded]');
-        const alreadyOpen = header?.getAttribute('aria-expanded') === 'true';
- 
-        if (!alreadyOpen) {
-            console.log("✅ Expanding 'Past deliveries'...");
+
+    async function clickPastDeliveriesThenAttributeDropdown() {
+        try {
+            // 1. Find and click "Past deliveries"
+            const pastDeliveries = Array.from(document.querySelectorAll('p.css-1oqpb4x')).find(
+                el => el.innerText.trim() === "Past deliveries"
+            );
+
+            if (!pastDeliveries) {
+                console.warn("❌ 'Past deliveries' not found.");
+                return;
+            }
+
+            console.log("✅ Clicking 'Past deliveries'...");
             pastDeliveries.scrollIntoView({ behavior: "smooth", block: "center" });
             pastDeliveries.click();
-            await new Promise(r => setTimeout(r, 1200));
-        } else {
-            pastDeliveries.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
- 
-        return true;
-    }
- 
-    // Returns [attributeBox, recentBox] visible comboboxes in the filter panel
-    function getFilterCombos() {
-        const panel = document.querySelector('.css-1e269i6') || document;
-        return Array.from(panel.querySelectorAll('div[role="combobox"]')).filter(isElementVisible);
-    }
- 
-    function openCombo(box) {
-        box.focus();
-        box.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true }));
-    }
- 
-    // Closes an open dropdown menu (Escape works for MUI Select/Menu popups)
-    function closeOpenDropdown(box) {
-        box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
-    }
- 
-    // Selects one option from an already-open dropdown
-    async function selectOption(text) {
-        const option = await waitForVisibleOption(text);
-        console.log(`🎯 Selecting "${text}"...`);
-        option.click();
-        return option;
-    }
- 
-    // ---------- Core flow ----------
-    // firstBoxOption: option text to pick in the 1st combobox (e.g. 'Count' / 'Reasons')
-    // secondBoxOptions: array of option texts to pick in the 2nd combobox (supports multi-select)
-    async function runFlow(firstBoxOption, secondBoxOptions) {
-        try {
-            const ready = await ensurePastDeliveriesOpen();
-            if (!ready) return;
- 
-            const [attributeBox, recentBox] = getFilterCombos();
- 
+
+            // Give the page a moment to switch tabs/views completely
+            await new Promise(r => setTimeout(r, 1200)); 
+
+            // 2. Find the correct visible Attribute combobox
+            const comboboxes = document.querySelectorAll('div[role="combobox"]');
+            const attributeBox = Array.from(comboboxes).find(el => el.textContent.includes('Attribute') && isElementVisible(el));
+
             if (!attributeBox) {
-                console.warn("❌ 1st (Attribute) combobox not found.");
+                console.warn("❌ Visible 'Attribute' combobox not found.");
                 return;
             }
- 
-            // --- 1st dropdown ---
-            console.log(`🔓 Opening 1st dropdown to pick "${firstBoxOption}"...`);
-            openCombo(attributeBox);
-            await selectOption(firstBoxOption);
-            await new Promise(r => setTimeout(r, 400));
- 
-            // --- 2nd dropdown ---
-            if (!recentBox) {
-                console.warn("❌ 2nd combobox not found.");
-                return;
+
+            // 3. Open the Attribute dropdown
+            console.log("🔓 Opening Attribute dropdown...");
+            attributeBox.focus();
+            attributeBox.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true }));
+
+            // 4. Find the dynamic 'Count' option that is VISIBLE
+            const countOption = await waitForVisibleOption('Count');
+            console.log("🎯 Found valid Count option, clicking...");
+            countOption.click();
+
+            // Give the UI a moment to register the selection and update the DOM
+            await new Promise(r => setTimeout(r, 400)); 
+
+            // 5. Find the next visible combobox handling 'Recent 10'
+            const comboboxes2 = document.querySelectorAll('div[role="combobox"]');
+            const recentBox = Array.from(comboboxes2).find(el => el.textContent.includes('Recent 10') && isElementVisible(el));
+
+            if (recentBox) {
+                console.log("🔓 Opening Recent 10 dropdown...");
+                recentBox.focus();
+                recentBox.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true }));
+
+                // 6. Find the dynamic 'All' option that is VISIBLE
+                const allOption = await waitForVisibleOption('All');
+                console.log("🎯 Found valid All option, clicking...");
+                allOption.click();
+            } else {
+                console.warn("❌ 'Recent 10' combobox not found or not visible yet.");
             }
- 
-            console.log("🔓 Opening 2nd dropdown...");
-            openCombo(recentBox);
- 
-            for (const optionText of secondBoxOptions) {
-                await selectOption(optionText);
-                await new Promise(r => setTimeout(r, 300)); // small gap between multi-selects
-            }
- 
-            // --- Close the 2nd dropdown ---
-            console.log("🔒 Closing 2nd dropdown...");
-            closeOpenDropdown(recentBox);
- 
+
         } catch (error) {
             console.error("⚠️ Script automation stalled:", error.message);
         }
     }
- 
-    // ---------- Key bindings ----------
- 
+
     document.addEventListener("keydown", function(event) {
+        // Ignore if typing inside an input or textarea
         if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
- 
-        const key = event.key.toLowerCase();
- 
-        if (key === "q") {
-            console.log("🚀 Q pressed — Count / All");
-            runFlow('Count', ['All']);
-        }
- 
-        if (key === "w") {
-            console.log("🚀 W pressed — Reasons / Other + Unattended");
-            runFlow('Reasons', ['Other', 'Unattended']);
-        }
- 
-        if (key === "e") {
-            console.log("🚀 E pressed — Reasons / Near Door");
-            runFlow('Reasons', ['Near Door']);
+
+        if (event.key.toLowerCase() === "q") {
+            console.log("🚀 Q key pressed — starting...");
+            clickPastDeliveriesThenAttributeDropdown();
         }
     });
 })();
- 
