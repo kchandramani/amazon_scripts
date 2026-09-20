@@ -11,7 +11,7 @@
             const textbox = document.querySelector('#geofence');
             if (textbox) {
                 textbox.select();
-                document.execCommand('insertText', false, '25');
+                document.execCommand('insertText', false, '10');
             }
         }
 
@@ -19,7 +19,7 @@
             const textbox = document.querySelector('#geofence');
             if (textbox) {
                 textbox.select();
-                document.execCommand('insertText', false, '50');
+                document.execCommand('insertText', false, '25');
             }
         }
     });
