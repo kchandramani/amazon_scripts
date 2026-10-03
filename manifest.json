@@ -45,7 +45,7 @@
             "enabled": true,
             "priority": 5,
             "description": "Automatically dismisses Validation Failed alerts",
-            "matchPatterns": ["na.geoeditor.app.amazon.dev","geostudio.last-mile.amazon.dev"]
+            "matchPatterns": ["geoeditor.app.amazon.dev","geostudio.last-mile.amazon.dev"]
         },
         {
             "name": "Auto Drop Down Selection STF",
