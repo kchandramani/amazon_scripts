@@ -1,4 +1,4 @@
-// Left Paste Buttons with Observer
+// Left Paste Buttons with Observer (Stealth Mode)
 
 (function() {
     'use strict';
@@ -29,7 +29,7 @@
         }, 50);
     }
 
-    function addButton(inputId, svgContent) {
+    function addButton(inputId) {
         const inputField = document.getElementById(inputId);
         if (!inputField) return null;
 
@@ -47,11 +47,10 @@
         button.style.cursor = 'pointer';
         button.style.width = '50px';
         button.style.height = '50px';
-        button.style.display = 'flex';
-        button.style.alignItems = 'center';
-        button.style.justifyContent = 'center';
+        button.style.opacity = '0';
+        button.style.userSelect = 'none';
+        button.style.outline = 'none';
 
-        button.innerHTML = svgContent;
         document.body.appendChild(button);
 
         button.addEventListener('click', async (e) => {
@@ -88,14 +87,12 @@
         button.style.top = (window.scrollY + rect.top - 14 + offsetY) + 'px';
     }
 
-    const svgCircle = '<svg width="80px" height="80px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"/><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"/><g id="SVGRepo_iconCarrier"><path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#000000" stroke-width="0.45600000000000007" stroke-linecap="round" stroke-linejoin="round"/></g></svg>';
-
     function addButtons() {
         if (!button1) {
-            button1 = addButton('input-dp-geocode', svgCircle);
+            button1 = addButton('input-dp-geocode');
         }
         if (!button2) {
-            button2 = addButton('input-re-geocode', svgCircle);
+            button2 = addButton('input-re-geocode');
         }
 
         setInterval(() => {
