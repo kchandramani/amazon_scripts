@@ -143,6 +143,16 @@
             "description": "Case Expiry & Auto-Submit Monitor (Cross-Frame)",
             "matchPatterns": ["geoeditor.app.amazon.dev","geostudio.last-mile.amazon.dev","templates.geostudio.last-mile.amazon.dev"]
         }
-        scripts/Auto-submit-monitor.js
+
+        {
+            "name": "Past Deliveries Filter Automation",
+            "file": "Deliveries-filter-automation.js",
+            "enabled": true,
+            "priority": 17,
+            "description": "Q -> Count/All, W -> Reasons/Other+Unattended, E -> Reasons/Near Door.",
+            "matchPatterns": ["geoeditor.app.amazon.dev","geostudio.last-mile.amazon.dev"]
+        }
+       // Deliveries-filter-automation.js
+        //scripts/Auto-submit-monitor.js
     ]
 }
