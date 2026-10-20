@@ -148,7 +148,7 @@
             "name": "Past Deliveries Filter Automation",
             "file": "Deliveries-filter-automation.js",
             "enabled": true,
-            "priority": 17,
+            "priority": 18,
             "description": "Q -> Count/All, W -> Reasons/Other+Unattended, E -> Reasons/Near Door.",
             "matchPatterns": ["geoeditor.app.amazon.dev","geostudio.last-mile.amazon.dev"]
         }
